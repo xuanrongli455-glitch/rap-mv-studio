@@ -101,6 +101,7 @@ node scripts/run-tests.mjs         # 26 個單元測試
 10. 過曝 → 曝光 1.05→0.96、bloom 係數 0.78→0.66、霧 0.0105→0.0092。
 11. 1080p 桌面「錄製成片」藏在面板捲動底部 → 動作列 sticky 固定。
 12. 載入時停在 t=0（標題粒子還散著，像沒字）→ 著陸畫面停在 1.5 秒。
+13. `scripts/verify.mjs` 的 importmap 檢查硬編碼 `node_modules/three/...`，但專案已 vendored 到 `vendor/three/`（`node_modules` 被 gitignore）→ `--strict` 永遠 FAIL。已改成走 importmap 解析（vendor 或 node_modules 皆可）。**教訓：換掉資源佈局後，驗收腳本本身也要跟著改。**
 
 ## 7. 目前未完成（接手後先問）
 

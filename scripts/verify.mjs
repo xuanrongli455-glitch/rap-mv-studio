@@ -21,8 +21,8 @@
 //   2. src/**/*.js 語法檢查（只解析不執行，見上）
 //   3. src 每個檔案的「相對 import」目標是否存在（含 main.js 的 import；
 //      缺 src/lib 或 config.js → 一定 FAIL；隊友目錄缺檔 → 開發模式 WARN、--strict FAIL）
-//   4. index.html 的 importmap："three" 與 "three/addons/" 要對應到
-//      node_modules/three/build/three.module.js 與 node_modules/three/examples/jsm/
+//   4. index.html 的 importmap："three" 與 "three/addons/" 要對應到實體檔案
+//      （vendored → vendor/three/...，否則退回 node_modules/three/...；兩者皆可）
 //   5. src 掃描（先去掉整行註解，降低誤報）：
 //      - ui / audio / record 不該 import 'three'
 //      - 不該出現 file:// 資源載入、require(
@@ -384,11 +384,17 @@ function check() {
           if (!ok) problems.push(`${key} → ${target}（解析成 ${rel(resolved)}，不存在）`);
           else notes.push(`${key} → ${rel(resolved)}`);
         }
-        // 題目要求的兩個實體路徑，也直接驗一次
-        const threeBuild = path.join(ROOT, 'node_modules', 'three', 'build', 'three.module.js');
-        const threeAddons = path.join(ROOT, 'node_modules', 'three', 'examples', 'jsm');
-        if (!isFile(threeBuild)) problems.push('缺少 node_modules/three/build/three.module.js');
-        if (!isDir(threeAddons)) problems.push('缺少 node_modules/three/examples/jsm/');
+        // 兩個實體路徑也直接驗一次，但走 importmap 解析：
+        // 已 vendored（GitHub Pages 佈署）就檢查 vendor/three 內的實體檔，
+        // 尚未 vendored 才退回 node_modules — 不再硬編碼單一路徑。
+        const threeBuild = resolveImportTarget(imports['three']);
+        const threeAddons = resolveImportTarget(imports['three/addons/']);
+        if (!threeBuild || !isFile(threeBuild)) {
+          problems.push(`three 實體檔不存在（${threeBuild ? rel(threeBuild) : '未解析'}）`);
+        }
+        if (!threeAddons || !isDir(threeAddons)) {
+          problems.push(`three/addons 目錄不存在（${threeAddons ? rel(threeAddons) : '未解析'}）`);
+        }
         if (problems.length) fail('importmap', problems.join('；'));
         else pass('importmap', notes.join('；'));
       }
