@@ -29,6 +29,12 @@ const state = {
   audioInfo: null,
 };
 
+// 著陸畫面時間：t=0 時標題粒子還在四散，看起來像沒有字 → 停在標題已聚合成字的位置。
+// 短片（duration 很小）用 7.5% 等比縮，避免超過片長。按「試看」仍從 0 秒播完整分鏡。
+function landingT() {
+  return Math.min(1.5, Math.max(0.2, config.duration * 0.075));
+}
+
 // ── 畫布尺寸：固定成輸出解析度，CSS 負責縮放 ──
 function applyCanvasSize() {
   const r = RATIOS[config.ratio] || RATIOS['9:16'];
@@ -265,8 +271,8 @@ async function finishRecording() {
   saveBlob(out.blob, out.filename);
   hideOverlay();
   state.mode = 'idle';
-  state.t = 0;
-  renderFrame(0);
+  state.t = landingT(); // 錄完回到著陸畫面（不歸 0，否則畫面像沒字）
+  renderFrame(state.t);
   panel.setStatus(`完成！已儲存 ${out.filename}（${(out.blob.size / 1048576).toFixed(1)} MB）`, 'ok');
 }
 
@@ -290,8 +296,9 @@ function applyConfig(patch) {
   try { scene.setConfig(config); } catch (err) { console.error('[mv] scene.setConfig 失敗', err); }
   try { panel.refresh(config); } catch { /* ignore */ }
   hudName.textContent = `${config.artist} — ${config.title}`;
-  // 立即反映在畫面上
-  renderFrame(state.mode === 'recording' ? state.t : (state.mode === 'preview' ? state.t : 0));
+  // 立即反映在畫面上。注意 idle 也要用 state.t，不能寫死 0：
+  // 著陸畫面刻意停在 landingT()（標題粒子已聚合成字），歸 0 會讓粒子散開、看起來像沒字。
+  renderFrame(clamp(state.t, 0, config.duration));
 }
 
 function resetConfig() {
@@ -334,7 +341,7 @@ hudName.textContent = `${config.artist} — ${config.title}`;
 window.__MV_CONFIG__ = config;
 // 著陸畫面停在「標題粒子已聚合成字」的位置：t=0 時粒子還在四散，打開頁面會像沒有字。
 // 按「試看」仍然從 0 秒開始播完整分鏡。
-state.t = Math.min(1.5, config.duration * 0.075);
+state.t = landingT();
 renderFrame(state.t);
 state.raf = requestAnimationFrame(frame);
 panel.setStatus('準備好了：填歌名/藝名 → 上傳音樂 → 按「錄製成片」', 'info');

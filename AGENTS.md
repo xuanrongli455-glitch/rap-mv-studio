@@ -102,6 +102,7 @@ node scripts/run-tests.mjs         # 26 個單元測試
 11. 1080p 桌面「錄製成片」藏在面板捲動底部 → 動作列 sticky 固定。
 12. 載入時停在 t=0（標題粒子還散著，像沒字）→ 著陸畫面停在 1.5 秒。
 13. `scripts/verify.mjs` 的 importmap 檢查硬編碼 `node_modules/three/...`，但專案已 vendored 到 `vendor/three/`（`node_modules` 被 gitignore）→ `--strict` 永遠 FAIL。已改成走 importmap 解析（vendor 或 node_modules 皆可）。**教訓：換掉資源佈局後，驗收腳本本身也要跟著改。**
+14. #12 只修了啟動那條路徑，`applyConfig()`（動任何滑桿/改歌名）與 `finishRecording()` 仍 `renderFrame(0)` → 標題粒子散開像沒字。已抽 `landingT()` 為單一來源，三處共用。
 
 ## 7. 目前未完成（接手後先問）
 
