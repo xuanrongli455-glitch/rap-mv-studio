@@ -44,25 +44,43 @@ export const PALETTES = {
   },
 };
 
-// 20 秒直式成片的分鏡（秒）。lyrics 的 t0/t1 決定 3D 歌詞何時出現。
+// localStorage 的設定 key。改預設值（例如換歌）時要把版本號往上跳，
+// 否則使用者瀏覽器裡的舊設定會在 loadConfig() 的 {...base, ...saved} 把新預設值蓋回去。
+export const CONFIG_STORAGE_KEY = 'rap-mv:config:v2';
+
+// 成片分鏡（秒）。lyrics 的 t0/t1 是**影片絕對秒數**（不隨 duration 縮放）：
+// 歌詞屬於音檔，換片長時歌詞不該跟著變形。分鏡的鏡頭比例才是按 duration/20 等比縮放。
 export const defaultConfig = {
-  // ── 文字資料：使用者自己填 ──
-  title: '夜行者',
-  artist: 'DIZZY 24',
+  // ── 文字資料：SOMBRA《Night Shift》（2026-11-07 使用者提供）──
+  title: 'Night Shift',
+  artist: 'SOMBRA',
   tagline: 'NEW SINGLE',
   cta: 'OUT NOW',
+  // 15 句對應實際音檔的四段人聲（能量分析：7.06–23.31 / 24.18–36.90 / 41.31–55.01 / 56.71–61.88）
+  // 結構：副歌 4 句 → 主歌 6 句 → 副歌重複 4 句 → 收尾 1 句
   lyrics: [
-    { text: '夜行者 降臨 街燈為我讓路', t0: 2.6, t1: 6.0 },
-    { text: '城市在低頻裡 跟著我呼吸', t0: 6.0, t1: 9.4 },
-    { text: '沒人看好 那就自己開一條路', t0: 9.4, t1: 12.8 },
-    { text: '音量開到最大 讓世界閉嘴', t0: 12.8, t1: 16.2 },
+    { text: "No sleep, night shift, yeah, I'm on the night shift (yeah)", t0: 7.06, t1: 10.77 },
+    { text: "Laptop glow, block and yellow, that's the night shift (what)", t0: 11.12, t1: 14.83 },
+    { text: 'Runnin\u2019 up a check while the city sleep (sleep)', t0: 15.18, t1: 18.89 },
+    { text: 'Rage in my veins, too turnt to be weak (yeah)', t0: 19.24, t1: 22.95 },
+    { text: '3AM, screen light on my face (face)', t0: 24.18, t1: 26.05 },
+    { text: 'Qingdao to the world, yeah, I set the pace (pace)', t0: 26.3, t1: 28.17 },
+    { text: 'Clouds in the server, smoke in the air (air)', t0: 28.42, t1: 30.29 },
+    { text: "They talkin' down, I don't even care (care)", t0: 30.54, t1: 32.41 },
+    { text: "Money callin', yeah, I gotta pick up (pick up)", t0: 32.66, t1: 34.53 },
+    { text: "Underground king, yeah, I'm risin' up (up)", t0: 34.78, t1: 36.65 },
+    { text: "No sleep, night shift, yeah, I'm on the night shift (yeah)", t0: 41.31, t1: 44.39 },
+    { text: "Laptop glow, block and yellow, that's the night shift (what)", t0: 44.74, t1: 47.82 },
+    { text: 'Runnin\u2019 up a check while the city sleep (sleep)', t0: 48.17, t1: 51.25 },
+    { text: 'Rage in my veins, too turnt to be weak (yeah)', t0: 51.6, t1: 54.68 },
+    { text: "I'm on the night shift", t0: 56.71, t1: 61.3 },
   ],
 
   // ── 規格 ──
-  duration: 20,
+  duration: 62.76,          // = 歌曲長度（48kHz／16-bit／stereo，實測 62.760 秒）
   fps: 30,
   ratio: '9:16',            // '9:16' | '16:9' | '1:1'
-  bpm: 92,
+  bpm: 93.5,                // beat.js 對整首歌的偵測值（confidence 0.124，偏低；面板可改）
   palette: 'neon',
 
   // ── 節奏／動態強度（0-1） ──
@@ -83,7 +101,7 @@ export const defaultConfig = {
 export function loadConfig() {
   const base = structuredClone(defaultConfig);
   try {
-    const raw = localStorage.getItem('rap-mv:config:v1');
+    const raw = localStorage.getItem(CONFIG_STORAGE_KEY);
     if (!raw) return base;
     const saved = JSON.parse(raw);
     const merged = { ...base, ...saved };
@@ -97,7 +115,7 @@ export function loadConfig() {
 
 export function saveConfig(cfg) {
   try {
-    localStorage.setItem('rap-mv:config:v1', JSON.stringify(cfg));
+    localStorage.setItem(CONFIG_STORAGE_KEY, JSON.stringify(cfg));
   } catch { /* 私密瀏覽可能失敗，忽略 */ }
 }
 

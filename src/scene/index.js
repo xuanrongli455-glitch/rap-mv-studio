@@ -484,7 +484,7 @@ export function createScene({ canvas, config } = {}) {
         obj.setVisible(false);
         continue;
       }
-      const st = lyricState(t, line, tl.k);
+      const st = lyricState(t, line); // 絕對秒數，不乘 k（見 camera.js 說明）
       obj.setVisible(st.active);
       if (!st.active) continue;
       obj.setTime(t);
@@ -606,7 +606,7 @@ export function createScene({ canvas, config } = {}) {
     let flash = 0;
     if (slamAge >= 0) flash += 0.9 * Math.exp(-slamAge * 5.5);
     for (const line of cfg.lyrics) {
-      const dt = tt - num(line.t0, 0) * tl.k;
+      const dt = tt - num(line.t0, 0); // 歌詞是絕對秒數，不隨 k 縮放
       if (dt >= 0 && dt < 1.5) flash += 0.1 * Math.exp(-dt * 8);
     }
     flash = clamp(flash * (0.45 + intensity * 0.8), 0, 1.3);

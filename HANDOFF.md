@@ -31,7 +31,7 @@ rap-mv/
 │   ├── record/         # MediaRecorder 封裝 + saveBlob
 │   ├── ui/             # 控制面板 panel.js / panel.css
 │   └── lib/            # 純邏輯（可 node 測）：beat.js（BPM/節拍）、timeline.js
-├── test/               # 26 個 node:test 單元測試
+├── test/               # 31 個 node:test 單元測試
 └── scripts/            # verify.mjs（16 項自檢）、run-tests.mjs、syntax-check.mjs
 ```
 
@@ -41,7 +41,7 @@ rap-mv/
 cd /home/dsh/Documents/deepseek-harness/default-workspace/rap-mv
 node server.js 8788              # 背景跑；會印出 127.0.0.1 與 LAN 網址
 node scripts/verify.mjs --strict # 16 項自檢（交付模式）
-node scripts/run-tests.mjs       # 26 個單元測試
+node scripts/run-tests.mjs       # 31 個單元測試
 ```
 
 - 同機：`http://127.0.0.1:8788/`
@@ -75,7 +75,7 @@ node scripts/run-tests.mjs       # 26 個單元測試
 9. 節拍地面震波環放在鏡頭前 6 單位、亮度 ×2.2 → 被 bloom 糊成畫面底部一道白光；已改成鏡頭正下方往外擴散、亮度 ×1.35、透明度砍半。
 10. 過曝 → 曝光 1.05→0.96、bloom 係數 0.78→0.66、霧 0.0105→0.0092（`scene/index.js`）。
 11. 1080p 桌面上「錄製成片」藏在面板捲動區底部 → 動作列 sticky 固定（`ui/panel.css` 末尾）。
-12. 載入時停在 t=0（標題粒子還散著，像沒字）→ 著陸畫面停在 1.5 秒（`main.js` 啟動段）。
+12. 載入時停在 t=0（標題粒子還散著，像沒字）→ 著陸畫面停在 `duration×7.5%`（**不寫死秒數**，`main.js` 的 `landingT()`）。
 
 ## 5. 待辦 / 下一步
 

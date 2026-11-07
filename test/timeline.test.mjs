@@ -35,19 +35,29 @@ function assertSectionsValid(sections, duration) {
 }
 
 // ── buildTimeline ───────────────────────────────────────────────
-test('buildTimeline：預設 config 切出 intro/verse/hook/outro 且完整覆蓋 0..20', () => {
+test('buildTimeline：預設 config 切出 intro/verse/hook/outro 且完整覆蓋（片長由 config 決定）', () => {
   const tl = buildTimeline(defaultConfig);
-  assertSectionsValid(tl.sections, defaultConfig.duration);
+  const D = defaultConfig.duration;
+  assertSectionsValid(tl.sections, D);
+
+  const firstLyric = defaultConfig.lyrics[0];
+  const lastLyric = defaultConfig.lyrics[defaultConfig.lyrics.length - 1];
 
   const intro = tl.sections[0];
   assert.equal(intro.kind, 'intro');
   assert.ok(Math.abs(intro.t0) < EPS);
-  assert.ok(Math.abs(intro.t1 - 2.6) < EPS, `intro 應在 2.6s 結束，實際 ${intro.t1}`);
+  assert.ok(
+    Math.abs(intro.t1 - firstLyric.t0) < EPS,
+    `intro 應在首句歌詞 ${firstLyric.t0}s 結束，實際 ${intro.t1}`,
+  );
 
   const last = tl.sections[tl.sections.length - 1];
   assert.equal(last.kind, 'outro');
-  assert.ok(Math.abs(last.t1 - 20) < EPS);
-  assert.ok(Math.abs(last.t0 - 18) < EPS, `outro 應是最後 2 秒，實際從 ${last.t0} 開始`);
+  assert.ok(Math.abs(last.t1 - D) < EPS);
+  assert.ok(
+    Math.abs(last.t0 - lastLyric.t1) < EPS,
+    `outro 應從最後一句歌詞結束 ${lastLyric.t1}s 開始，實際 ${last.t0}`,
+  );
 
   // 四種 kind 都要出現
   const kinds = new Set(tl.sections.map((s) => s.kind));
@@ -92,14 +102,16 @@ test('buildTimeline：duration 不合法時用安全預設值', () => {
 test('lyricAt：邊界（t=0、t=duration、歌詞中點）', () => {
   const tl = buildTimeline(defaultConfig);
 
-  // 0 秒與片尾都在歌詞區之外 → null
+  const D = defaultConfig.duration;
+  // 首句之前與影片尾端之外 → null（歌詞不從 0 秒開始，片長也不是舊的 20 秒）
   assert.equal(tl.lyricAt(0), null);
-  assert.equal(tl.lyricAt(20), null);
+  assert.equal(tl.lyricAt(D), null);
   assert.equal(tl.lyricAt(-1), null);
-  assert.equal(tl.lyricAt(21), null);
+  assert.equal(tl.lyricAt(D + 1), null);
 
-  // 第一句的中點：2.6..6.0 → 4.3
-  const mid = tl.lyricAt(4.3);
+  // 第一句的中點（由 config 推，不寫死秒數）
+  const first = defaultConfig.lyrics[0];
+  const mid = tl.lyricAt((first.t0 + first.t1) / 2);
   assert.ok(mid, '歌詞中點應回傳物件');
   assert.equal(mid.index, 0);
   assert.equal(mid.text, defaultConfig.lyrics[0].text);
@@ -107,7 +119,7 @@ test('lyricAt：邊界（t=0、t=duration、歌詞中點）', () => {
   assert.ok(Math.abs(mid.progress - 0.5) < 0.02, `progress 應約 0.5，實際 ${mid.progress}`);
 
   // 歌詞開頭的精確邊界
-  const atStart = tl.lyricAt(2.6);
+  const atStart = tl.lyricAt(first.t0);
   assert.ok(atStart && atStart.index === 0 && Math.abs(atStart.progress) < EPS);
 
   // 每一句的中點都要能命中

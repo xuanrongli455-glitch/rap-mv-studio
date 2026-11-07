@@ -1,6 +1,6 @@
 // rap-mv/src/main.js — 整合層（Lead 擁有，不要改）
 // 職責：把 config / 3D 場景 / 音訊 / 錄影 / UI 串起來，提供一個確定性的時間軸。
-import { loadConfig, saveConfig, RATIOS, PALETTES } from './config.js';
+import { loadConfig, saveConfig, RATIOS, PALETTES, CONFIG_STORAGE_KEY } from './config.js';
 import { createScene } from './scene/index.js';
 import { createAudio } from './audio/audio.js';
 import { createRecorder, saveBlob } from './record/recorder.js';
@@ -30,9 +30,11 @@ const state = {
 };
 
 // 著陸畫面時間：t=0 時標題粒子還在四散，看起來像沒有字 → 停在標題已聚合成字的位置。
-// 短片（duration 很小）用 7.5% 等比縮，避免超過片長。按「試看」仍從 0 秒播完整分鏡。
+// 標題聚合進度是 p = t/introEnd，而 introEnd = 0.13×duration（分鏡等比縮放），
+// 所以要跟著 duration 走、不能寫死 1.5 秒（62 秒的片會停在 p=0.18，標題半散開）。
+// duration×7.5% → p≈0.58（聚合完成、離炸散還早）。短片用 duration×20% 封頂。
 function landingT() {
-  return Math.min(1.5, Math.max(0.2, config.duration * 0.075));
+  return clamp(config.duration * 0.075, 0.2, config.duration * 0.2);
 }
 
 // ── 畫布尺寸：固定成輸出解析度，CSS 負責縮放 ──
@@ -303,7 +305,7 @@ function applyConfig(patch) {
 
 function resetConfig() {
   audio.stop();
-  try { localStorage.removeItem('rap-mv:config:v1'); } catch { /* ignore */ }
+  try { localStorage.removeItem(CONFIG_STORAGE_KEY); } catch { /* ignore */ }
   location.reload();
 }
 

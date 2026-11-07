@@ -123,10 +123,11 @@ export function cameraPath(t, duration, intensity) {
 }
 
 // 單句歌詞的時間狀態：聚合成字的進度、句末炸散的爆量、淡入淡出。
-// line.t0/t1 是使用者填的絕對秒數（照 20 秒填），要乘 k 才是這支影片的時間。
-export function lyricState(t, line, k) {
-  const t0 = num(line && line.t0, 0) * k;
-  const t1 = num(line && line.t1, t0 + 0.8) * k;
+// line.t0/t1 是**影片絕對秒數**（和 autoDistributeLyrics 的輸出、lib/timeline 同一套語意），
+// 不乘 k —— 歌詞貼著音檔，換片長時不該變形。分鏡（鏡頭／藝名／CTA）才按 k 等比例縮放。
+export function lyricState(t, line) {
+  const t0 = num(line && line.t0, 0);
+  const t1 = num(line && line.t1, t0 + 0.8);
   const span = Math.max(0.25, t1 - t0);
   const p = (num(t, 0) - t0) / span;
   return {

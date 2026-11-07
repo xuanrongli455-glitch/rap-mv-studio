@@ -543,6 +543,16 @@ function check() {
     const audio = body('src/audio/audio.js');
     must('src/audio/audio.js', /MIN_BPM - 3/, 'BPM 邊界 ±3 容差', audio);                     // bug #6
 
+    // 歌詞時間軸必須是「絕對秒數」：lyricState 不得再乘 k（bug #16）
+    const cam = body('src/scene/camera.js');
+    must('src/scene/camera.js', /export function lyricState\(t, line/, 'lyricState(t, line) 絕對秒數', cam);
+    if (cam && /num\(line && line\.t0, 0\)\s*\*\s*k/.test(cam)) {
+      problems.push('src/scene/camera.js：lyricState 仍把歌詞時間 ×k（和 autoDistributeLyrics 的絕對秒數打架）');
+    }
+    if (idx && /num\(line\.t0, 0\)\s*\*\s*tl\.k/.test(idx)) {
+      problems.push('src/scene/index.js：歌詞爆光時間仍 ×tl.k（應為絕對秒數）');
+    }
+
     const main = body('src/main.js');
     must('src/main.js', /function landingT\(\)/, '著陸畫面 landingT()', main);               // bug #12/#14
     if (main) {

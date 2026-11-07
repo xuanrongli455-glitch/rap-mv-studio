@@ -30,7 +30,7 @@
 - 裝置：iPhone（DSH App，本專案起源地）、**iPad（DSH App，獨立容器，不同步聊天）**、Windows 桌機（RTX 5060、Chrome 156、支援原生 `video/mp4` MediaRecorder）。
 - GitHub：`xuanrongli455-glitch`，本 repo：`rap-mv-studio`（Public）。
 - 他最在意：① 成品要真的能用 ② 要在自己的裝置上就能操作 ③ 希望「Agent 的記憶/人格」能跨裝置延續（所以才會有這份 AGENTS.md）。
-- **他還沒提供歌名 / 藝名 / 歌詞** —— 這是唯一讓他做不了自己 MV 的最後一塊拼圖，記得每次都要問一次。
+- 歌資料（2026-11-07 已提供，已寫進 `defaultConfig`）：**SOMBRA《Night Shift》**，15 句英文歌詞，音檔 48kHz/16-bit/stereo **62.760 秒**。之後若要換歌，記得同時改 `title/artist/lyrics/duration/bpm` 並把 `CONFIG_STORAGE_KEY` 版本號往上跳。
 
 ## 3. 專案：rap-mv（3D 說唱 MV 工作室）
 
@@ -38,6 +38,7 @@
 自檢頁：`.../selftest.html`
 
 它是「瀏覽器即時渲染的 WebGL 工作室」：Three.js 霓虹賽博城市 + 粒子歌詞 + 節拍反應，
+預設成片就是 SOMBRA《Night Shift》整首 **62.76 秒**（片長＝歌曲長度；分鏡按 `duration/20` 等比縮放）。
 用 `canvas.captureStream()` + `MediaRecorder` 直接錄成 1080×1920 影片（Windows Chrome 是 mp4、其他可能是 webm）。
 
 ### 檔案地圖
@@ -54,7 +55,7 @@ src/audio/          # 解碼、BPM、頻譜 Stats、錄影混音 stream
 src/record/         # MediaRecorder 封裝 + saveBlob
 src/ui/             # panel.js / panel.css（手機底部抽屜、桌面右側 360px）
 src/lib/            # 純函式：beat.js（BPM/節拍）、timeline.js
-test/ scripts/      # 26 個單元測試；verify.mjs / run-tests.mjs / syntax-check.mjs / vendor-three.mjs / deploy-github.sh
+test/ scripts/      # 31 個單元測試；verify.mjs / run-tests.mjs / syntax-check.mjs / vendor-three.mjs / deploy-github.sh
 memory/             # 對話記憶
 vendor/three/       # vendored three.js 0.187（GitHub Pages 用，含 MIT LICENSE）
 ```
@@ -63,7 +64,7 @@ vendor/three/       # vendored three.js 0.187（GitHub Pages 用，含 MIT LICEN
 
 ```bash
 node scripts/verify.mjs --strict   # 16 項（語法/import/importmap/分層/純函式/視覺常數/測試）
-node scripts/run-tests.mjs         # 26 個單元測試
+node scripts/run-tests.mjs         # 31 個單元測試
 ```
 
 ## 4. 為什麼是這個架構（別推翻這些決策）
@@ -100,14 +101,17 @@ node scripts/run-tests.mjs         # 26 個單元測試
 9. 節拍震波環放鏡頭前 6 單位、亮度 ×2.2 → 被 bloom 糊成底部白光 → 改鏡頭正下方擴散、亮度 ×1.35、透明度砍半。
 10. 過曝 → 曝光 1.05→0.96、bloom 係數 0.78→0.66、霧 0.0105→0.0092。（注意：每幀會覆寫成 `0.94 + beat*0.05 + flash*0.22`，所以實測基準是 **0.94**，藝名 slam 時 flash 會衝到約 **1.28** 是刻意的爆光；0.96 只作用在首幀。人眼覺得 slam 過曝再說。）
 11. 1080p 桌面「錄製成片」藏在面板捲動底部 → 動作列 sticky 固定。
-12. 載入時停在 t=0（標題粒子還散著，像沒字）→ 著陸畫面停在 1.5 秒。
+12. 載入時停在 t=0（標題粒子還散著，像沒字）→ 著陸畫面停在 `duration×7.5%`（20 秒片＝1.5 秒、62.76 秒片＝4.7 秒）。**不要改回寫死秒數**：標題聚合進度是 `p=t/introEnd`，而 `introEnd` 隨片長等比縮放。
 13. `scripts/verify.mjs` 的 importmap 檢查硬編碼 `node_modules/three/...`，但專案已 vendored 到 `vendor/three/`（`node_modules` 被 gitignore）→ `--strict` 永遠 FAIL。已改成走 importmap 解析（vendor 或 node_modules 皆可）。**教訓：換掉資源佈局後，驗收腳本本身也要跟著改。**
 14. #12 只修了啟動那條路徑，`applyConfig()`（動任何滑桿/改歌名）與 `finishRecording()` 仍 `renderFrame(0)` → 標題粒子散開像沒字。已抽 `landingT()` 為單一來源，三處共用。
 15. 上面這些「改回去畫面會壞、但不會報任何錯」的值，原本只靠人工複查 → 已加進 `verify.mjs` 的 **視覺常數** 檢查（smoothstep 方向、霧/曝光/bloom、牆面 albedo、震波環、depthTest、BPM ±3、landingT）。已用破壞性測試驗證：故意改回壞版本會 FAIL。
 
+16. 歌詞時間軸原本有**兩套語意**：`autoDistributeLyrics`（面板「套用歌詞」在用）給的是絕對秒數，但 `camera.lyricState` 會把 `t0/t1` 乘上 `k=duration/20`，`scene/index.js` 的歌詞爆光也乘。片長 20 秒時 k=1 剛好相等，所以從未爆；改成 62.76 秒（k=3.14）後，面板排好的 8.8~54 秒會被推成 27~169 秒，畫面幾乎看不到任何一句。已統一成**絕對秒數**（`lyricState(t, line)`、爆光不乘 k），並由 `test/lyrics.test.mjs`（5 個測試）＋ verify「視覺常數」雙重守門。同時 localStorage key 升到 `rap-mv:config:v2`，否則使用者瀏覽器裡的舊預設值（夜行者／20 秒）會把新歌蓋回去。
+
 ## 7. 目前未完成（接手後先問）
 
-- [ ] **使用者還沒給歌名 / 藝名 / 歌詞** → 拿到後改 `src/config.js` 的 `defaultConfig`（歌詞要含 `t0/t1`，或給純文字用 `autoDistributeLyrics` 均分），commit + push，Pages 約 1 分鐘更新。
+- [x] **歌曲資料已套用**（SOMBRA《Night Shift》，15 句、片長 62.76 秒、BPM 93.5）。**還沒 push**：需要 classic PAT 才能推 Pages。
+- [ ] 歌詞排點是從音檔能量分段推的（四段人聲 4/6/4/1 句），**可能不對嘴**；若使用者聽出來哪裡早了/晚了，直接改 `defaultConfig.lyrics` 的 t0/t1（絕對秒數）即可。
 - [ ] **第一次「試看 + 錄製成片」還沒回報**：要確認 ① 有沒有聲音 ② 有沒有歌詞文字 ③ mp4 能不能播。
 - [ ] 依實測畫面調色（請使用者把時間軸拖到 5s / 10s / 17s 各截一張圖）。
 - [ ] 16:9 與 1:1 尚未在真機看過。
