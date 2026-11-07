@@ -51,11 +51,11 @@ src/config.js       # ★ 唯一設定來源：歌名/藝名/標語/CTA/歌詞(t
 src/main.js         # 整合層：狀態機 idle/preview/recording、確定性時間軸、錄影流程
 src/contract.md     # 各模組 API 合約（改架構前先讀）
 src/scene/          # index(統整) city props atmos text post camera util
-src/audio/          # 解碼、BPM、頻譜 Stats、錄影混音 stream
+src/audio/          # 解碼、BPM、頻譜 Stats、錄影混音 stream、cache.js（本機 IndexedDB 音檔快取）
 src/record/         # MediaRecorder 封裝 + saveBlob
 src/ui/             # panel.js / panel.css（手機底部抽屜、桌面右側 360px）
 src/lib/            # 純函式：beat.js（BPM/節拍）、timeline.js
-test/ scripts/      # 31 個單元測試；verify.mjs / run-tests.mjs / syntax-check.mjs / vendor-three.mjs / deploy-github.sh
+test/ scripts/      # 37 個單元測試；verify.mjs / run-tests.mjs / syntax-check.mjs / vendor-three.mjs / deploy-github.sh
 memory/             # 對話記憶
 vendor/three/       # vendored three.js 0.187（GitHub Pages 用，含 MIT LICENSE）
 ```
@@ -64,7 +64,7 @@ vendor/three/       # vendored three.js 0.187（GitHub Pages 用，含 MIT LICEN
 
 ```bash
 node scripts/verify.mjs --strict   # 16 項（語法/import/importmap/分層/純函式/視覺常數/測試）
-node scripts/run-tests.mjs         # 31 個單元測試
+node scripts/run-tests.mjs         # 37 個單元測試
 ```
 
 ## 4. 為什麼是這個架構（別推翻這些決策）
@@ -125,6 +125,7 @@ node scripts/run-tests.mjs         # 31 個單元測試
 4. 若要推到線上：`GITTOKEN=... OWNER=xuanrongli455-glitch REPO=rap-mv-studio bash scripts/deploy-github.sh`
    （token 需要 classic PAT 的 `repo` scope；用完請使用者撤銷，別寫進任何檔案）。
 5. **不要**改動 `memory/` 裡已產生的歷史紀錄；新的對話請另存新檔。
+6. 音檔**不要**放進 repo（public）。使用者的歌存在他自己瀏覽器的 IndexedDB（`src/audio/cache.js`），重載會自動接回來；「重設」會清掉。無痕模式不支援快取 → 每次要重新上傳，這是預期行為。
 
 ---
 

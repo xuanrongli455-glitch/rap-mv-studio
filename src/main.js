@@ -4,6 +4,7 @@ import { loadConfig, saveConfig, RATIOS, PALETTES, CONFIG_STORAGE_KEY } from './
 import { createScene } from './scene/index.js';
 import { createAudio } from './audio/audio.js';
 import { createRecorder, saveBlob } from './record/recorder.js';
+import { saveAudio, loadAudio, clearAudio } from './audio/cache.js';
 import { createPanel } from './ui/panel.js';
 import { syntheticStats } from './lib/beat.js';
 import { formatTime, clamp } from './lib/timeline.js';
@@ -306,25 +307,63 @@ function applyConfig(patch) {
 function resetConfig() {
   audio.stop();
   try { localStorage.removeItem(CONFIG_STORAGE_KEY); } catch { /* ignore */ }
+  // 「重設」是全部歸零：連這台裝置記住的音檔一起清掉
+  clearAudio().catch(() => {});
   location.reload();
 }
 
-async function loadAudioFile(file) {
+async function loadAudioFile(file, { fromCache = false } = {}) {
   if (!file) return;
-  panel.setStatus('分析音檔中…', 'info');
+  panel.setStatus(fromCache ? '還原上次的歌…' : '分析音檔中…', 'info');
   try {
     const info = await audio.loadFile(file);
     state.audioInfo = info;
     applyConfig({ bpm: info.bpm || config.bpm });
     panel.setStatus(
       `已載入「${info.name}」 ${formatTime(info.duration)} · 偵測 BPM ${info.bpm}` +
-        (info.bpm ? '' : '（未偵測到，請手動填）'),
+        (info.bpm ? '' : '（未偵測到，請手動填）') +
+        (fromCache ? ' · 已記住，下次開啟自動載入' : ''),
       'ok',
     );
+    // 使用者自己選的檔案才寫入本機快取（從快取還原的就不再寫一次）
+    if (!fromCache) {
+      saveAudio(file).then((res) => {
+        if (!res.ok && res.reason) console.warn('[mv] 音檔無法存進本機快取', res.reason);
+      });
+    }
   } catch (err) {
     console.error('[mv] 音檔載入失敗', err);
     panel.setStatus('音檔載入失敗：' + (err?.message || err), 'error');
   }
+}
+
+// 開啟頁面時把上次的歌接回來（只在這台裝置、存在 IndexedDB，不上傳）。
+// iOS 上沒有使用者手勢時 AudioContext 可能是 suspended，解碼若失敗就等第一次觸碰再試。
+async function restoreCachedAudio() {
+  let cached = null;
+  try {
+    cached = await loadAudio();
+  } catch {
+    return false;
+  }
+  if (!cached || !cached.file) return false;
+  try {
+    await loadAudioFile(cached.file, { fromCache: true });
+    return true;
+  } catch (err) {
+    console.warn('[mv] 還原上次的音檔失敗', err);
+    return false;
+  }
+}
+
+function armRestoreOnFirstGesture() {
+  const once = () => {
+    window.removeEventListener('pointerdown', once, true);
+    window.removeEventListener('keydown', once, true);
+    restoreCachedAudio().catch(() => {});
+  };
+  window.addEventListener('pointerdown', once, true);
+  window.addEventListener('keydown', once, true);
 }
 
 function snapshot() {
@@ -347,6 +386,10 @@ state.t = landingT();
 renderFrame(state.t);
 state.raf = requestAnimationFrame(frame);
 panel.setStatus('準備好了：填歌名/藝名 → 上傳音樂 → 按「錄製成片」', 'info');
+// 上次載入過的歌會自動接回來（只在這台裝置）；失敗就等第一次觸碰再試
+restoreCachedAudio()
+  .then((restored) => { if (!restored) armRestoreOnFirstGesture(); })
+  .catch(() => armRestoreOnFirstGesture());
 
 // 切成背景時暫停試看，避免耗電
 document.addEventListener('visibilitychange', () => {
