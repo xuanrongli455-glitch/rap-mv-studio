@@ -1,0 +1,10 @@
+# 依賴：不進版控（vendor/three 已經是複製好的靜態檔，會進版控）
+node_modules/
+pnpm-lock.yaml
+package-lock.json
+
+# 打包/暫存
+*.tgz
+*.tar.gz
+.DS_Store
+Thumbs.db

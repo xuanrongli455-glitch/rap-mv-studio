@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>MV Studio · 能力自檢</title>
+<style>
+  body { margin: 0; background: #05010d; color: #eee; font: 15px/1.6 -apple-system, "PingFang TC", sans-serif; padding: 18px calc(18px + env(safe-area-inset-right)) calc(28px + env(safe-area-inset-bottom)); }
+  h1 { font-size: 19px; margin: 6px 0 14px; }
+  .row { display: flex; gap: 10px; align-items: baseline; padding: 9px 0; border-bottom: 1px solid rgba(255,255,255,.08); }
+  .k { flex: 0 0 42%; color: #9a94b8; font-size: 13px; }
+  .v { flex: 1; word-break: break-all; font-family: ui-monospace, Menlo, monospace; font-size: 13px; }
+  .ok { color: #35f0a0; } .no { color: #ff5470; } .warn { color: #ffcf5a; }
+  .big { margin: 16px 0; padding: 14px; border-radius: 12px; background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.12); }
+  .big b { font-size: 17px; }
+  #verdict { font-size: 16px; font-weight: 700; padding: 14px; border-radius: 12px; margin-top: 16px; }
+  button { margin-top: 14px; width: 100%; padding: 14px; border-radius: 12px; border: 1px solid rgba(255,255,255,.2); background: #221039; color: #fff; font-size: 16px; }
+</style>
+</head>
+<body>
+<h1>🎛 能力自檢</h1>
+<div id="list"></div>
+<div id="verdict">檢查中…</div>
+
+<script>
+const rows = [];
+function add(k, v, cls = '') { rows.push({ k, v, cls }); }
+function render() {
+  document.getElementById('list').innerHTML = rows.map(r => `<div class="row"><div class="k">${r.k}</div><div class="v ${r.cls}">${r.v}</div></div>`).join('');
+}
+
+(async () => {
+  add('UA', navigator.userAgent);
+  add('螢幕', `${screen.width}×${screen.height} @${devicePixelRatio}x`);
+
+  // WebGL
+  let glInfo = 'no';
+  try {
+    const c = document.createElement('canvas');
+    const gl = c.getContext('webgl2') || c.getContext('webgl');
+    if (gl) {
+      const dbg = gl.getExtension('WEBGL_debug_renderer_info');
+      glInfo = `${gl instanceof WebGL2RenderingContext ? 'WebGL2' : 'WebGL1'} · ${dbg ? gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) : 'renderer hidden'}`;
+      add('WebGL', glInfo, 'ok');
+      add('最大貼圖', gl.getParameter(gl.MAX_TEXTURE_SIZE));
+      add('最大 renderbuffer', gl.getParameter(gl.MAX_RENDERBUFFER_SIZE));
+    } else add('WebGL', '不支援（頁面會黑屏）', 'no');
+  } catch (e) { add('WebGL', '例外：' + e.message, 'no'); }
+
+  // 錄影能力
+  const cands = [
+    'video/mp4;codecs=avc1.42E01E',
+    'video/mp4;codecs=h264',
+    'video/mp4',
+    'video/webm;codecs=vp9',
+    'video/webm;codecs=vp8',
+    'video/webm',
+  ];
+  add('MediaRecorder', typeof MediaRecorder === 'function' ? '有' : '沒有（無法錄影）', typeof MediaRecorder === 'function' ? 'ok' : 'no');
+  if (typeof MediaRecorder === 'function') {
+    const sup = cands.filter(t => MediaRecorder.isTypeSupported(t));
+    add('可錄格式', sup.length ? sup.join(', ') : '全部不支援', sup.length ? 'ok' : 'no');
+    add('→ 實際會用', sup[0] || 'NONE', sup[0] ? 'ok' : 'no');
+  }
+  add('canvas.captureStream', typeof HTMLCanvasElement.prototype.captureStream === 'function' ? '有' : '沒有', typeof HTMLCanvasElement.prototype.captureStream === 'function' ? 'ok' : 'no');
+  // 實測：真的開一個 1 秒錄影
+  if (typeof MediaRecorder === 'function' && HTMLCanvasElement.prototype.captureStream) {
+    try {
+      const c = document.createElement('canvas'); c.width = 320; c.height = 568;
+      const g = c.getContext('2d'); g.fillStyle = '#123'; g.fillRect(0, 0, 320, 568);
+      const stream = c.captureStream(30);
+      const type = cands.find(t => MediaRecorder.isTypeSupported(t));
+      const mr = new MediaRecorder(stream, type ? { mimeType: type } : undefined);
+      const chunks = [];
+      mr.ondataavailable = e => e.data.size && chunks.push(e.data);
+      const done = new Promise(res => { mr.onstop = res; });
+      mr.start();
+      for (let i = 0; i < 20; i++) { g.fillStyle = `hsl(${i * 18},90%,50%)`; g.fillRect(0, i * 24, 320, 24); await new Promise(r => setTimeout(r, 40)); }
+      mr.stop(); await done;
+      const blob = new Blob(chunks, { type: type || 'video/mp4' });
+      add('實測錄影 1 秒', `${(blob.size / 1024).toFixed(0)} KB / ${blob.type}`, blob.size > 2000 ? 'ok' : 'warn');
+    } catch (e) { add('實測錄影', '失敗：' + e.message, 'no'); }
+  }
+
+  // WebCodecs（更高畫質輸出的備選路徑）
+  add('VideoEncoder (WebCodecs)', window.VideoEncoder ? '有' : '沒有', window.VideoEncoder ? 'ok' : 'warn');
+  if (window.VideoEncoder) {
+    const vc = ['avc1.42E01E', 'avc1.640028', 'vp8', 'vp09.00.10.08'].filter(c => { try { return VideoEncoder.isConfigSupported({ codec: c, width: 1080, height: 1920, bitrate: 8e6, framerate: 30 }).then ? true : true; } catch { return false; } });
+    try {
+      const r = await Promise.all(['avc1.42001f', 'avc1.640028', 'vp8', 'vp09.00.10.08'].map(async c => {
+        try { const s = await VideoEncoder.isConfigSupported({ codec: c, width: 1080, height: 1920, bitrate: 8000000, framerate: 30 }); return s.supported ? c : null; } catch { return null; }
+      }));
+      add('可編碼影像', r.filter(Boolean).join(', ') || '無', r.filter(Boolean).length ? 'ok' : 'warn');
+    } catch (e) { add('可編碼影像', '查詢失敗：' + e.message, 'warn'); }
+  }
+  add('AudioEncoder (WebCodecs)', window.AudioEncoder ? '有' : '沒有', window.AudioEncoder ? 'ok' : 'warn');
+  if (window.AudioEncoder) {
+    try {
+      const r = await Promise.all(['mp4a.40.2', 'opus'].map(async c => {
+        try { const s = await AudioEncoder.isConfigSupported({ codec: c, sampleRate: 48000, numberOfChannels: 2, bitrate: 128000 }); return s.supported ? c : null; } catch { return null; }
+      }));
+      add('可編碼音訊', r.filter(Boolean).join(', ') || '無', r.filter(Boolean).length ? 'ok' : 'warn');
+    } catch (e) { add('可編碼音訊', '查詢失敗：' + e.message, 'warn'); }
+  }
+
+  // WebAudio
+  try {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (AC) {
+      const ctx = new AC();
+      add('AudioContext', `sampleRate ${ctx.sampleRate}Hz / state ${ctx.state}`);
+      add('MediaStreamDestination', typeof ctx.createMediaStreamDestination === 'function' ? '有' : '沒有');
+      ctx.close && ctx.close();
+    } else add('AudioContext', '不支援', 'no');
+  } catch (e) { add('AudioContext', '例外：' + e.message, 'no'); }
+
+  add('localStorage', (() => { try { localStorage.setItem('t', '1'); localStorage.removeItem('t'); return '可寫'; } catch { return '不可寫（私密模式）'; } })());
+  add('下載（a[download]）', 'HTMLAnchorElement download' in document.createElement('a') ? '支援' : '不確定');
+
+  render();
+
+  const mrOk = typeof MediaRecorder === 'function' && cands.some(t => MediaRecorder.isTypeSupported(t)) && HTMLCanvasElement.prototype.captureStream;
+  const glOk = glInfo !== 'no';
+  const v = document.getElementById('verdict');
+  if (mrOk && glOk) {
+    v.textContent = '✅ 可以完整使用：3D 渲染 + 錄影導出';
+    v.style.background = 'rgba(53,240,160,.14)'; v.style.color = '#8affd0';
+  } else if (glOk) {
+    v.textContent = '⚠️ 3D 能看，但這個瀏覽器不能錄影 —— 請用 Safari 開';
+    v.style.background = 'rgba(255,207,90,.14)'; v.style.color = '#ffcf5a';
+  } else {
+    v.textContent = '❌ WebGL 不可用 —— 關掉低耗電模式或改用 Safari';
+    v.style.background = 'rgba(255,84,112,.14)'; v.style.color = '#ff97a8';
+  }
+})();
+</script>
+</body>
+</html>
