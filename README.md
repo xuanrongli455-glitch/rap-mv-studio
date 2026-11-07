@@ -135,7 +135,7 @@ rap-mv/
 ```bash
 cd rap-mv
 node server.js 8788          # 啟動工作室（背景跑）
-node scripts/verify.mjs      # 專案自檢（15 項，--strict 為交付模式）
+node scripts/verify.mjs      # 專案自檢（16 項，--strict 為交付模式）
 node scripts/run-tests.mjs   # 單元測試（26 個）
 ```
 

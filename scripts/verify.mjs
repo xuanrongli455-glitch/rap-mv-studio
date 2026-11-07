@@ -29,6 +29,9 @@
 //      - 不該依賴 python / ffmpeg 這類環境裡不存在的東西（WARN，軟性）
 //      - src/lib 不得使用 DOM / window / AudioContext（純函式庫）
 //      - src/scene 內的 Math.random()（WARN，update 應為純時間函式）
+//      - 視覺常數：AGENTS.md 第 6 節那些「改回去畫面就會壞、但不會報錯」的值
+//        （smoothstep 方向、霧/曝光/bloom、牆面 albedo、震波環、depthTest、
+//         BPM ±3 容差、landingT）；破壞性測試驗證過會 FAIL
 //   6. 單元測試：src/lib 兩支都在就實際跑 test/*.test.mjs
 //      - 正常 Node 用 `node --test test/`
 //      - iOS DSH 沙盒不支援目錄參數時，自動改用 scripts/run-tests.mjs（等價）
@@ -484,6 +487,77 @@ function check() {
     warn('scene 確定性', `出現 Math.random()：${sceneRandom.join('、')}（update 應為純時間函式，否則錄影每幀會抖）`);
   } else {
     pass('scene 確定性', 'scene 沒有 Math.random()');
+  }
+
+  // 5f. 視覺常數與已修 bug 的硬檢查（這些值被改回去，畫面就會壞，但不會有任何錯誤訊息）
+  //     每一條都對應 AGENTS.md 第 6 節的一個 bug，靠人工複查會漏 → 交給機器守。
+  {
+    const problems = [];
+    const okNotes = [];
+    const srcPath = (relPath) => path.join(ROOT, relPath);
+    const body = (relPath) => {
+      try {
+        return fs.readFileSync(srcPath(relPath), 'utf8');
+      } catch {
+        problems.push(`${relPath} 不存在`);
+        return '';
+      }
+    };
+    const must = (relPath, re, label, code) => {
+      if (!code) return;
+      if (re.test(code)) okNotes.push(label);
+      else problems.push(`${relPath} 找不到 ${label}`);
+    };
+
+    // (1) GLSL smoothstep 參數遞減 = 規範未定義行為（Apple GPU 風險）
+    const sceneJs = jsFiles.map((f) => ({ name: rel(f), code: read(f) })).filter((f) => /^src\/scene\//.test(f.name));
+    let smoothCount = 0;
+    for (const f of sceneJs) {
+      for (const m of f.code.matchAll(/smoothstep\(\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*,/g)) {
+        smoothCount += 1;
+        if (parseFloat(m[1]) >= parseFloat(m[2])) {
+          problems.push(`${f.name}：smoothstep(${m[1]}, ${m[2]}, …) 參數遞減（GLSL 未定義行為）`);
+        }
+      }
+    }
+    if (smoothCount) okNotes.push(`${smoothCount} 處 smoothstep 皆遞增`);
+
+    const idx = body('src/scene/index.js');
+    must('src/scene/index.js', /const FOG_DENSITY = 0\.0092;/, '霧濃度 0.0092', idx);   // bug #10
+    must('src/scene/index.js', /toneMappingExposure = 0\.96;/, '首幀曝光 0.96', idx);      // bug #10
+    must('src/scene/index.js', /toneMappingExposure = 0\.94 \+ beat \* 0\.05/, '每幀曝光基準 0.94', idx); // bug #10
+    must('src/scene/index.js', /0\.66 \+ beat \* 0\.38/, 'bloom 基準係數 0.66', idx);      // bug #10
+
+    const city = body('src/scene/city.js');
+    must('src/scene/city.js', /color:\s*new THREE\.Color\(0xffffff\)/, '牆面白色基底', city); // bug #7
+    must('src/scene/city.js', /WALL_ALBEDO = 7\.5/, 'WALL_ALBEDO 7.5', city);                // bug #7
+    must('src/scene/city.js', /const faceX =/, '招牌朝外凸出（faceX）', city);                // bug #8
+
+    const atmos = body('src/scene/atmos.js');
+    must('src/scene/atmos.js', /multiplyScalar\(1\.35\)/, '震波環亮度 1.35', atmos);          // bug #9
+    must('src/scene/atmos.js', /beat \* beat \* 0\.3/, '震波環透明度 0.3', atmos);            // bug #9
+
+    const text = body('src/scene/text.js');
+    must('src/scene/text.js', /depthTest:\s*false/, '文字 depthTest:false', text);           // 架構決策
+
+    const audio = body('src/audio/audio.js');
+    must('src/audio/audio.js', /MIN_BPM - 3/, 'BPM 邊界 ±3 容差', audio);                     // bug #6
+
+    const main = body('src/main.js');
+    must('src/main.js', /function landingT\(\)/, '著陸畫面 landingT()', main);               // bug #12/#14
+    if (main) {
+      const landingUses = (main.match(/landingT\(\)/g) || []).length;
+      if (landingUses >= 3) okNotes.push(`landingT 用於 ${landingUses} 處`);
+      else problems.push(`src/main.js：landingT() 只用於 ${landingUses} 處（啟動/改設定/錄完應共用）`);
+      // bug #14：idle 改設定時不能寫死 renderFrame(0)
+      const fn = main.match(/function applyConfig\([\s\S]*?\n\}/);
+      if (fn && /renderFrame\(\s*0\s*\)/.test(fn[0])) {
+        problems.push('src/main.js：applyConfig() 仍寫死 renderFrame(0)（idle 改設定會讓標題粒子散開）');
+      }
+    }
+
+    if (problems.length) fail('視覺常數', problems.join('；'));
+    else pass('視覺常數', okNotes.join('；'));
   }
 
   // ── 6. 單元測試 ───────────────────────────────────────────────

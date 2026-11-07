@@ -7,7 +7,7 @@
 
 ## 0. 一句話現況
 
-專案在 iPhone 的這個 App 容器裡，**已完成並全綠**（`verify --strict` 15/15、單元測試 26/26）。
+專案在 iPhone 的這個 App 容器裡，**已完成並全綠**（`verify --strict` 16/16、單元測試 26/26）。
 使用者已在 Windows Chrome（RTX 5060、Chrome 156）成功看到 3D 畫面，且該瀏覽器**原生支援 `video/mp4` 錄影**。
 還缺：① 使用者的歌名/藝名/歌詞 ② 首次成功錄出成片 ③ 依實測畫面調色。
 
@@ -32,7 +32,7 @@ rap-mv/
 │   ├── ui/             # 控制面板 panel.js / panel.css
 │   └── lib/            # 純邏輯（可 node 測）：beat.js（BPM/節拍）、timeline.js
 ├── test/               # 26 個 node:test 單元測試
-└── scripts/            # verify.mjs（15 項自檢）、run-tests.mjs、syntax-check.mjs
+└── scripts/            # verify.mjs（16 項自檢）、run-tests.mjs、syntax-check.mjs
 ```
 
 ## 2. 怎麼啟動 / 驗收
@@ -40,7 +40,7 @@ rap-mv/
 ```bash
 cd /home/dsh/Documents/deepseek-harness/default-workspace/rap-mv
 node server.js 8788              # 背景跑；會印出 127.0.0.1 與 LAN 網址
-node scripts/verify.mjs --strict # 15 項自檢（交付模式）
+node scripts/verify.mjs --strict # 16 項自檢（交付模式）
 node scripts/run-tests.mjs       # 26 個單元測試
 ```
 

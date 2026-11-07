@@ -15,7 +15,7 @@
 在這場對話裡運作時的實際風格（請維持）：
 
 - **先驗證、再動手**：不確定就實測（`curl`、`node -e`、直接讀原始碼），不猜。
-- **數據說話**：報告帶數字（15/15 PASS、誤差 0.06 BPM、200 回應碼），不講空話。
+- **數據說話**：報告帶數字（16/16 PASS、誤差 0.06 BPM、200 回應碼），不講空話。
 - **誠實標註限制**：環境做不到的事直接說（例如沒有 ffmpeg 就不能離線渲染 MP4），並給替代方案，而不是硬做。
 - **改了什麼就說為什麼**：每個 bug 修完要能講清楚根因（TDZ、GLSL 未定義行為、instanceColor 乘算…）。
 - **交付前自己先跑驗收**：`verify --strict` + 單元測試，綠了才算完成。
@@ -62,7 +62,7 @@ vendor/three/       # vendored three.js 0.187（GitHub Pages 用，含 MIT LICEN
 ### 驗收（改完必跑，全部要綠）
 
 ```bash
-node scripts/verify.mjs --strict   # 15 項（語法/import/importmap/分層/純函式/測試）
+node scripts/verify.mjs --strict   # 16 項（語法/import/importmap/分層/純函式/視覺常數/測試）
 node scripts/run-tests.mjs         # 26 個單元測試
 ```
 
@@ -98,11 +98,12 @@ node scripts/run-tests.mjs         # 26 個單元測試
 7. 樓體 `material.color` 太暗（instanceColor 是乘算）→ 改白色基底。
 8. 霓虹招牌平貼牆面在飛行鏡頭下隱形 → 改朝外凸出的刀牌。
 9. 節拍震波環放鏡頭前 6 單位、亮度 ×2.2 → 被 bloom 糊成底部白光 → 改鏡頭正下方擴散、亮度 ×1.35、透明度砍半。
-10. 過曝 → 曝光 1.05→0.96、bloom 係數 0.78→0.66、霧 0.0105→0.0092。
+10. 過曝 → 曝光 1.05→0.96、bloom 係數 0.78→0.66、霧 0.0105→0.0092。（注意：每幀會覆寫成 `0.94 + beat*0.05 + flash*0.22`，所以實測基準是 **0.94**，藝名 slam 時 flash 會衝到約 **1.28** 是刻意的爆光；0.96 只作用在首幀。人眼覺得 slam 過曝再說。）
 11. 1080p 桌面「錄製成片」藏在面板捲動底部 → 動作列 sticky 固定。
 12. 載入時停在 t=0（標題粒子還散著，像沒字）→ 著陸畫面停在 1.5 秒。
 13. `scripts/verify.mjs` 的 importmap 檢查硬編碼 `node_modules/three/...`，但專案已 vendored 到 `vendor/three/`（`node_modules` 被 gitignore）→ `--strict` 永遠 FAIL。已改成走 importmap 解析（vendor 或 node_modules 皆可）。**教訓：換掉資源佈局後，驗收腳本本身也要跟著改。**
 14. #12 只修了啟動那條路徑，`applyConfig()`（動任何滑桿/改歌名）與 `finishRecording()` 仍 `renderFrame(0)` → 標題粒子散開像沒字。已抽 `landingT()` 為單一來源，三處共用。
+15. 上面這些「改回去畫面會壞、但不會報任何錯」的值，原本只靠人工複查 → 已加進 `verify.mjs` 的 **視覺常數** 檢查（smoothstep 方向、霧/曝光/bloom、牆面 albedo、震波環、depthTest、BPM ±3、landingT）。已用破壞性測試驗證：故意改回壞版本會 FAIL。
 
 ## 7. 目前未完成（接手後先問）
 
