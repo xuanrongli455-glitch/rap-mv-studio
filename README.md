@@ -7,6 +7,18 @@
 
 ---
 
+## ☁️ 線上版（iPad / 任何裝置，不用開伺服器）
+
+直接開網址就能用，渲染在你自己的裝置上、檔案下載到本機：
+
+- 工作室：**https://xuanrongli455-glitch.github.io/rap-mv-studio/**
+- 能力自檢：https://xuanrongli455-glitch.github.io/rap-mv-studio/selftest.html
+
+原始碼：https://github.com/xuanrongli455-glitch/rap-mv-studio
+（GitHub Pages 走 https，錄影/麥克風等 API 需要安全來源，所以一定要用這個網址，不要用 file://）
+
+要更新線上版：改完 `node scripts/vendor-three.mjs`（有換 three 版本才需要）→ `git commit` → `git push`，Pages 約 1 分鐘自動重新佈署。
+
 ## 一、怎麼開（30 秒）
 
 1. 跟 DSH 說「開工作室」（或叫我啟動），我會在背景跑一個本機伺服器（埠 8788）。
