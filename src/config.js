@@ -89,6 +89,10 @@ export const defaultConfig = {
   bloom: 0.9,               // 光暈強度
   grain: 0.35,              // 底片顆粒
 
+  // ── 文字顏色（空字串＝跟隨配色；填 #rrggbb 就強制用這個顏色）──
+  lyricColor: '',          // 歌詞
+  titleColor: '',          // 歌名／藝名／標語／CTA
+
   // ── 場景元素開關 ──
   showCity: true,
   showVinyl: true,

@@ -48,7 +48,7 @@
 index.html          # 版面、importmap（three → ./vendor/three）、紅色錯誤橫幅（真機除錯）
 selftest.html       # 能力自檢（WebGL / MediaRecorder / mimeType / 實測 1 秒錄影）
 server.js           # 零依賴靜態伺服器，綁 0.0.0.0:8788（本機開發用；線上不需要）
-src/config.js       # ★ 唯一設定來源：歌名/藝名/標語/CTA/歌詞(t0,t1)/比例/時長/配色/滑桿預設
+src/config.js       # ★ 唯一設定來源：歌名/藝名/標語/CTA/歌詞(t0,t1)/比例/時長/配色/文字顏色/滑桿預設
 src/main.js         # 整合層：狀態機 idle/preview/recording、確定性時間軸、錄影流程
 src/contract.md     # 各模組 API 合約（改架構前先讀）
 src/scene/          # index(統整) city props atmos text post camera util
@@ -110,6 +110,8 @@ node scripts/run-tests.mjs         # 37 個單元測試
 16. 歌詞時間軸原本有**兩套語意**：`autoDistributeLyrics`（面板「套用歌詞」在用）給的是絕對秒數，但 `camera.lyricState` 會把 `t0/t1` 乘上 `k=duration/20`，`scene/index.js` 的歌詞爆光也乘。片長 20 秒時 k=1 剛好相等，所以從未爆；改成 62.76 秒（k=3.14）後，面板排好的 8.8~54 秒會被推成 27~169 秒，畫面幾乎看不到任何一句。已統一成**絕對秒數**（`lyricState(t, line)`、爆光不乘 k），並由 `test/lyrics.test.mjs`（5 個測試）＋ verify「視覺常數」雙重守門。同時 localStorage key 升到 `rap-mv:config:v2`，否則使用者瀏覽器裡的舊預設值（夜行者／20 秒）會把新歌蓋回去。
 
 17. 選檔框原本是 `accept="audio/*"`：iOS 的選檔視窗用 UTI 過濾，部分版本會把 `.wav` 灰掉不能選（使用者實測卡在這）。已**移除 accept**（什麼檔都能選），選錯（圖片／影片）由 `main.js` 的 `audioErrorMessage()` 給人話提示；面板另外提示「檔案變灰＝雲端還沒下載」。
+
+18. 文字顏色原本只能跟主題色（`applyTextColors()` 用 palette 推）。已新增 `lyricColor` / `titleColor`（空字串＝跟隨主題色），面板「文字顏色」兩個色盤可自選，`setConfig` 偵測顏色變更也會重套。單一顏色會自動推成深／淺兩階（`pairFrom()`）餵給粒子的雙色混合，避免看起來死板。
 
 ## 7. 目前未完成（接手後先問）
 

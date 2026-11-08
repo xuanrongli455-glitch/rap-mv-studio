@@ -75,6 +75,10 @@ function normalizeConfig(input) {
   c.artist = String(c.artist == null ? '' : c.artist);
   c.tagline = String(c.tagline == null ? '' : c.tagline);
   c.cta = String(c.cta == null ? '' : c.cta);
+  // 顏色覆寫：只收 #rgb / #rrggbb / #rrggbbaa，格式不對就當作「跟隨配色」
+  const colorOr = (v) => (/^#(?:[0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(String(v || '')) ? String(v) : '');
+  c.lyricColor = colorOr(c.lyricColor);
+  c.titleColor = colorOr(c.titleColor);
   if (!PALETTES[c.palette]) c.palette = 'neon';
   for (const key of ['showCity', 'showVinyl', 'showMic', 'showParticles', 'showLyrics', 'showRain']) {
     c[key] = c[key] !== false;
@@ -285,15 +289,26 @@ export function createScene({ canvas, config } = {}) {
     lyricsRebuilt = true;
   }
 
+  // 使用者自選顏色 → 由「一個顏色」推出深/淺兩階（粒子會混色，單色才不會看起來死板）
+  function pairFrom(hex, lo = 1.0, hi = 1.45) {
+    const base = new THREE.Color(hex);
+    return [base.clone().multiplyScalar(lo), base.clone().multiplyScalar(hi)];
+  }
+
   function applyTextColors() {
     const C = (key, mult) => new THREE.Color(palette[key] || '#ffffff').multiplyScalar(mult);
-    if (texts.title) texts.title.setPalette(C('text', 1.35), C('key', 1.5));
-    if (texts.tagline) texts.tagline.setPalette(C('key', 1.15), C('accent', 1.15));
-    if (texts.artist) texts.artist.setPalette(C('text', 1.45), C('accent', 1.5));
-    if (texts.cta) texts.cta.setPalette(C('key', 1.5), C('text', 1.3));
-    if (texts.artistSmall) texts.artistSmall.setPalette(C('text', 1.1), C('accent', 1.2));
+    const titlePair = cfg.titleColor ? pairFrom(cfg.titleColor, 1.0, 1.4) : null;
+    const lyricPair = cfg.lyricColor ? pairFrom(cfg.lyricColor, 1.0, 1.35) : null;
+
+    if (texts.title) texts.title.setPalette(titlePair ? titlePair[0] : C('text', 1.35), titlePair ? titlePair[1] : C('key', 1.5));
+    if (texts.tagline) texts.tagline.setPalette(titlePair ? titlePair[0] : C('key', 1.15), titlePair ? titlePair[1] : C('accent', 1.15));
+    if (texts.artist) texts.artist.setPalette(titlePair ? titlePair[0] : C('text', 1.45), titlePair ? titlePair[1] : C('accent', 1.5));
+    if (texts.cta) texts.cta.setPalette(titlePair ? titlePair[1] : C('key', 1.5), titlePair ? titlePair[0] : C('text', 1.3));
+    if (texts.artistSmall) texts.artistSmall.setPalette(titlePair ? titlePair[0] : C('text', 1.1), titlePair ? titlePair[1] : C('accent', 1.2));
     for (const obj of texts.lyrics) {
-      if (obj) obj.setPalette(C('key', 1.3), C('accent', 1.35));
+      if (!obj) continue;
+      if (lyricPair) obj.setPalette(lyricPair[0], lyricPair[1]);
+      else obj.setPalette(C('key', 1.3), C('accent', 1.35));
     }
   }
 
@@ -379,7 +394,8 @@ export function createScene({ canvas, config } = {}) {
         lyricSig = sig;
         syncLyrics();
       }
-      if (textChanged || lyricsRebuilt) {
+      const colorChanged = cfg.lyricColor !== prev.lyricColor || cfg.titleColor !== prev.titleColor;
+      if (textChanged || lyricsRebuilt || colorChanged) {
         applyTextColors();
         lyricsRebuilt = false;
       }

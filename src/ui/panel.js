@@ -103,6 +103,16 @@ const PANEL_HTML = `
   </section>
 
   <section class="grp">
+    <h3 class="grp-t">文字顏色</h3>
+    <div class="color-row">
+      <label class="fld fld-color"><span>歌詞</span><input id="f-lyricColor" type="color" value="#ff2bd6"></label>
+      <label class="fld fld-color"><span>歌名／藝名</span><input id="f-titleColor" type="color" value="#00e5ff"></label>
+    </div>
+    <button type="button" class="btn btn-sm" id="btn-color-auto" data-lock>跟隨主題色</button>
+    <p class="meta" id="f-color-meta">未指定 → 跟隨主題色</p>
+  </section>
+
+  <section class="grp">
     <h3 class="grp-t">動態強度</h3>
     <label class="fld fld-range"><span>強度</span><input id="f-intensity" type="range" min="0" max="1" step="0.05"><output id="v-intensity">0.85</output></label>
     <label class="fld fld-range"><span>震動</span><input id="f-shake" type="range" min="0" max="1" step="0.05"><output id="v-shake">0.45</output></label>
@@ -227,6 +237,10 @@ export function createPanel({ config, onChange, audio, recorder, actions } = {})
     bpm: $('#f-bpm'),
     bpmAuto: $('#f-bpm-auto'),
     paletteWrap: $('#palette-swatches'),
+    lyricColor: $('#f-lyricColor'),
+    titleColor: $('#f-titleColor'),
+    btnColorAuto: $('#btn-color-auto'),
+    colorMeta: $('#f-color-meta'),
     audioInput: $('#f-audio'),
     audioMeta: $('#f-audio-meta'),
     seek: $('#f-seek'),
@@ -422,6 +436,26 @@ export function createPanel({ config, onChange, audio, recorder, actions } = {})
     }
   }
 
+  // 顏色欄位同步：未指定（空字串）時 picker 顯示主題色當預覽，不代表已指定
+  function syncColorInputs() {
+    const pal = PALETTES[cfg && cfg.palette] || PALETTES.neon;
+    const hex6 = (v) => String(v || '').slice(0, 7);
+    const lyricAuto = hex6(pal.accent) || '#ff2bd6';
+    const titleAuto = hex6(pal.text) || '#ffffff';
+    if (els.lyricColor) {
+      try { els.lyricColor.value = hex6(cfg.lyricColor) || lyricAuto; } catch { /* ignore */ }
+    }
+    if (els.titleColor) {
+      try { els.titleColor.value = hex6(cfg.titleColor) || titleAuto; } catch { /* ignore */ }
+    }
+    if (els.colorMeta) {
+      els.colorMeta.textContent =
+        (cfg.lyricColor ? '歌詞：自訂 ' + cfg.lyricColor : '歌詞：跟隨主題色') +
+        '　·　' +
+        (cfg.titleColor ? '歌名/藝名：自訂 ' + cfg.titleColor : '歌名/藝名：跟隨主題色');
+    }
+  }
+
   function refresh(nextConfig) {
     if (nextConfig && typeof nextConfig === 'object') cfg = nextConfig;
     if (!cfg || typeof cfg !== 'object') return;
@@ -445,6 +479,7 @@ export function createPanel({ config, onChange, audio, recorder, actions } = {})
       setInputValue(els.bpm, cfg.bpm);
       updateBpmBadge();
       updatePaletteActive();
+      syncColorInputs();
 
       for (const key of RANGE_KEYS) {
         const el = byId('f-' + key);
@@ -544,6 +579,43 @@ export function createPanel({ config, onChange, audio, recorder, actions } = {})
       updateRatioActive(ratio); // 立即視覺回饋，不等 main round-trip
     } catch (err) {
       console.warn('[panel] 比例切換失敗', err);
+    }
+  });
+
+  // 文字顏色：拖色盤時用 rAF 合併，避免每個 input 事件都跑一次完整 refresh
+  let colorPending = null;
+  let colorRafId = 0;
+  const scheduleColor = () => {
+    if (colorRafId) return;
+    const raf = typeof requestAnimationFrame === 'function'
+      ? requestAnimationFrame
+      : (fn) => setTimeout(fn, 16);
+    colorRafId = raf(() => {
+      colorRafId = 0;
+      const patch = colorPending;
+      colorPending = null;
+      if (!patch || syncing) return;
+      onChangeSafe(patch);
+    });
+  };
+  const onColorInput = (el, key) => {
+    on(el, 'input', () => {
+      if (syncing || !el) return;
+      const v = String(el.value || '');
+      if (!/^#[0-9a-f]{6}$/i.test(v)) return;
+      colorPending = { ...(colorPending || {}), [key]: v };
+      scheduleColor();
+    });
+  };
+  onColorInput(els.lyricColor, 'lyricColor');
+  onColorInput(els.titleColor, 'titleColor');
+  on(els.btnColorAuto, 'click', () => {
+    try {
+      colorPending = null;
+      onChangeSafe({ lyricColor: '', titleColor: '' });
+      setStatus('文字顏色已改回跟隨主題色', 'ok');
+    } catch (err) {
+      console.warn('[panel] 顏色回復失敗', err);
     }
   });
 
