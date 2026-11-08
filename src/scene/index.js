@@ -87,6 +87,8 @@ function normalizeConfig(input) {
   }
   c.showPortrait = c.showPortrait !== false;
   c.showAvatar = c.showAvatar !== false;
+  c.avatarFlip = c.avatarFlip === true;
+  c.avatarHeight = clamp(num(c.avatarHeight, base.avatarHeight), 2, 40);
   c.lyrics = Array.isArray(c.lyrics)
     ? c.lyrics
         .filter((line) => line && typeof line.text === 'string')
@@ -343,6 +345,9 @@ export function createScene({ canvas, config } = {}) {
       atmos.setVisible({ rain: cfg.showRain !== false, particles: cfg.showParticles !== false });
       if (portrait) portrait.setVisible(cfg.showPortrait !== false);
       if (avatar) avatar.setVisible(cfg.showAvatar !== false);
+      if (avatar) {
+        avatar.object.rotation.y = cfg.avatarFlip ? Math.PI : 0;
+      }
     } catch (err) {
       warn('套用可見性失敗', err);
     }
@@ -394,6 +399,14 @@ export function createScene({ canvas, config } = {}) {
         textChanged = true;
       }
       if (cfg.cta !== prev.cta) { replaceText('cta', cfg.cta); textChanged = true; }
+
+      // 角色：轉向 / 大小改了要立即套用（不用重新載入模型）
+      if (avatar) {
+        if (cfg.avatarFlip !== prev.avatarFlip) avatar.object.rotation.y = cfg.avatarFlip ? Math.PI : 0;
+        if (cfg.avatarHeight !== prev.avatarHeight) {
+          try { avatar.setHeight(cfg.avatarHeight); } catch { /* ignore */ }
+        }
+      }
 
       const sig = lyricTextSignature(cfg.lyrics);
       if (sig !== lyricSig) {
@@ -589,6 +602,8 @@ export function createScene({ canvas, config } = {}) {
       }
       avatar = created;
       avatar.object.position.set(AVATAR_POS.x, AVATAR_POS.y, AVATAR_POS.z);
+      avatar.object.rotation.y = cfg.avatarFlip ? Math.PI : 0;
+      try { avatar.setHeight(cfg.avatarHeight); } catch { /* ignore */ }
       scene.add(avatar.object);
       applyVisibility();
       return {

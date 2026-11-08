@@ -125,7 +125,7 @@ node scripts/run-tests.mjs         # 43 個單元測試
 - [ ] **第一次「試看 + 錄製成片」還沒回報**：要確認 ① 有沒有聲音 ② 有沒有歌詞文字 ③ mp4 能不能播。
 - [ ] 依實測畫面調色（請使用者把時間軸拖到 5s / 10s / 17s 各截一張圖）。
 - [ ] 16:9 與 1:1 尚未在真機看過。
-- [ ] **3D 動漫角色待使用者提供模型**：需用 VRoid Studio（iOS app，免費，匯出 .vrm）或 Ready Player Me（匯出 .glb）做一個角色，上傳後才會出現在街道上。方向/比例若怪（背對鏡頭、太高太小），改 `scene/index.js` 的 `AVATAR_POS` / `AVATAR_HEIGHT` 或 `avatar.object.rotation.y`。
+- [ ] **3D 動漫角色待使用者提供模型**（使用者已選 VRoid Mobile 路線）：需用 VRoid Studio（iOS app，免費，匯出 .vrm）或 Ready Player Me（匯出 .glb）做一個角色，上傳後才會出現在街道上。**方向/大小已做成面板可調**（`avatarFlip` 勾選、`avatarHeight` 滑桿 2–20），不用改程式；只有站點位置（`AVATAR_POS`）要改才動 `scene/index.js`。
 - [ ] **3D 形象的效果驗證**：使用者原始照片是「黑衣＋逆光臉」，粒子化後臉不清楚；建議改用去背 PNG（iPad 照片長按主體）或臉部打光的正面照。實測畫面待回報。
 - [ ] 可選：Windows 覺得光暈糊 → 刪 `scene/post.js` 裡 `bloomPass.setSize` 的 override。
 

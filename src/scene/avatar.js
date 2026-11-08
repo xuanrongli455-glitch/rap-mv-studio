@@ -153,6 +153,7 @@ export async function createAvatar({ url, height = 8, tint = '#00e5ff' } = {}) {
   }
   const hasRig = !!(rig.hips || rig.spine || rig.head);
   const rootRestY = root.position.y;
+  const baseSizeY = size0.y;
 
   let disposed = false;
 
@@ -165,6 +166,18 @@ export async function createAvatar({ url, height = 8, tint = '#00e5ff' } = {}) {
     height,
     setVisible(v) {
       group.visible = v !== false;
+    },
+    // 動態改高度：重新縮放並把腳貼回地面（面板滑桿用）
+    setHeight(nextHeight) {
+      const h = Number(nextHeight);
+      if (!Number.isFinite(h) || h <= 0) return;
+      const s = h / baseSizeY;
+      root.scale.setScalar(s);
+      root.position.y = 0;
+      root.updateMatrixWorld(true);
+      const box = new THREE.Box3().setFromObject(root);
+      root.position.y -= box.min.y;
+      shadow.scale.setScalar(Math.max(0.4, h / 8));
     },
     // 純時間函式：t 決定一切（錄影逐幀才會一致）
     update(t, beat = 0) {

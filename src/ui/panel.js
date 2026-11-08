@@ -149,6 +149,8 @@ const PANEL_HTML = `
     <label class="file-btn" for="f-avatar">🧑‍🎤 選 3D 模型（.vrm / .glb）</label>
     <input id="f-avatar" type="file" hidden>
     <button type="button" class="btn btn-sm" id="btn-avatar-clear" data-lock>移除 3D 角色</button>
+    <label class="chk"><input type="checkbox" id="f-avatarFlip"><span>面向鏡頭（只看到背面時勾）</span></label>
+    <label class="fld fld-range"><span>大小</span><input id="f-avatarHeight" type="range" min="2" max="20" step="0.5"><output id="v-avatarHeight">8</output></label>
     <p class="meta" id="f-avatar-meta">用 VRoid Studio（免費）做動漫角色 → 匯出 .vrm；或 Ready Player Me 匯出 .glb。模型只在你這台裝置處理。</p>
     <p class="meta">想改用「照片粒子人像」：</p>
     <label class="file-btn" for="f-photo">🖼 照片 → 3D 粒子人像（另類風格）</label>
@@ -259,6 +261,9 @@ export function createPanel({ config, onChange, audio, recorder, actions } = {})
     avatarInput: $('#f-avatar'),
     btnAvatarClear: $('#btn-avatar-clear'),
     avatarMeta: $('#f-avatar-meta'),
+    avatarFlip: $('#f-avatarFlip'),
+    avatarHeight: $('#f-avatarHeight'),
+    avatarHeightOut: $('#v-avatarHeight'),
     photoInput: $('#f-photo'),
     btnPhotoClear: $('#btn-photo-clear'),
     photoMeta: $('#f-photo-meta'),
@@ -500,6 +505,11 @@ export function createPanel({ config, onChange, audio, recorder, actions } = {})
       updateBpmBadge();
       updatePaletteActive();
       syncColorInputs();
+      if (els.avatarFlip) els.avatarFlip.checked = cfg.avatarFlip === true;
+      if (els.avatarHeight) {
+        setInputValue(els.avatarHeight, cfg.avatarHeight);
+        if (els.avatarHeightOut) els.avatarHeightOut.textContent = Number(cfg.avatarHeight || 8).toFixed(1);
+      }
 
       for (const key of RANGE_KEYS) {
         const el = byId('f-' + key);
@@ -751,6 +761,24 @@ export function createPanel({ config, onChange, audio, recorder, actions } = {})
     }
   });
   on(els.btnAvatarClear, 'click', () => runAction('clearAvatar'));
+  on(els.avatarFlip, 'change', () => {
+    if (syncing || !els.avatarFlip) return;
+    onChangeSafe({ avatarFlip: !!els.avatarFlip.checked });
+  });
+  let avatarHeightRaf = 0;
+  const pushAvatarHeight = () => {
+    avatarHeightRaf = 0;
+    if (syncing || !els.avatarHeight) return;
+    const v = Number(els.avatarHeight.value);
+    if (!Number.isFinite(v)) return;
+    if (els.avatarHeightOut) els.avatarHeightOut.textContent = v.toFixed(1);
+    onChangeSafe({ avatarHeight: v });
+  };
+  on(els.avatarHeight, 'input', () => {
+    if (syncing || avatarHeightRaf) return;
+    const raf = typeof requestAnimationFrame === 'function' ? requestAnimationFrame : (fn) => setTimeout(fn, 16);
+    avatarHeightRaf = raf(pushAvatarHeight);
+  });
 
   // 上傳形象照片（本機處理，不上傳）
   on(els.photoInput, 'change', () => {

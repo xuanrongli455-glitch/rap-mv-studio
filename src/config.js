@@ -101,6 +101,8 @@ export const defaultConfig = {
   showLyrics: true,
   showPortrait: false,  // 照片粒子人像（預設關，改用 3D 角色）
   showAvatar: true,     // 3D 動漫角色（VRM / GLB，模型在本機處理）
+  avatarFlip: false,    // 角色背對鏡頭時勾起來（VRM 常見朝 -Z）
+  avatarHeight: 8,      // 角色在世界裡的高度（世界單位）
   showRain: true,
 };
 
