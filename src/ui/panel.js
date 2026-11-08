@@ -18,7 +18,7 @@ import { PALETTES } from '../config.js';
 import { autoDistributeLyrics, formatTime } from '../lib/timeline.js';
 
 const RANGE_KEYS = ['intensity', 'shake', 'bloom', 'grain'];
-const TOGGLE_KEYS = ['showCity', 'showVinyl', 'showMic', 'showParticles', 'showLyrics', 'showRain'];
+const TOGGLE_KEYS = ['showCity', 'showVinyl', 'showMic', 'showParticles', 'showLyrics', 'showRain', 'showPortrait'];
 
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 const clamp01 = (v) => {
@@ -129,6 +129,7 @@ const PANEL_HTML = `
       <label class="chk"><input type="checkbox" id="f-showParticles"><span>粒子</span></label>
       <label class="chk"><input type="checkbox" id="f-showLyrics"><span>歌詞</span></label>
       <label class="chk"><input type="checkbox" id="f-showRain"><span>雨</span></label>
+      <label class="chk"><input type="checkbox" id="f-showPortrait"><span>我的形象</span></label>
     </div>
   </section>
 
@@ -140,6 +141,14 @@ const PANEL_HTML = `
     <input id="f-audio" type="file" hidden>
     <p class="meta" id="f-audio-meta" data-loaded="0">尚未載入音檔 → 錄影會是無聲影片</p>
     <p class="meta">選檔視窗若把檔案顯示成灰色 → 那是雲端還沒下載到本機：先在「檔案」App 把歌下載，或長按拷貝到「我的 iPad」，再回來選。</p>
+  </section>
+
+  <section class="grp">
+    <h3 class="grp-t">我的形象（3D）</h3>
+    <label class="file-btn" for="f-photo">🧑‍🎤 放一張照片 → 變成 3D 粒子人像</label>
+    <input id="f-photo" type="file" hidden>
+    <button type="button" class="btn btn-sm" id="btn-photo-clear" data-lock>移除形象</button>
+    <p class="meta" id="f-photo-meta">照片只在你的裝置上處理，不會上傳。建議用「去背」的 PNG（iPad 照片長按主體→拷貝）效果最好。</p>
   </section>
 
   <section class="grp">
@@ -242,6 +251,9 @@ export function createPanel({ config, onChange, audio, recorder, actions } = {})
     btnColorAuto: $('#btn-color-auto'),
     colorMeta: $('#f-color-meta'),
     audioInput: $('#f-audio'),
+    photoInput: $('#f-photo'),
+    btnPhotoClear: $('#btn-photo-clear'),
+    photoMeta: $('#f-photo-meta'),
     audioMeta: $('#f-audio-meta'),
     seek: $('#f-seek'),
     seekTime: $('#f-seek-time'),
@@ -714,6 +726,22 @@ export function createPanel({ config, onChange, audio, recorder, actions } = {})
       setStatus('無法讀取音檔：' + errText(err), 'error');
     }
   });
+
+  // 上傳形象照片（本機處理，不上傳）
+  on(els.photoInput, 'change', () => {
+    try {
+      const input = els.photoInput;
+      const file = input && input.files && input.files[0];
+      if (!file) return;
+      setStatus(`已選擇照片「${file.name}」→ 轉成 3D 粒子…`, 'info');
+      runAction('loadPhoto', file);
+      try { input.value = ''; } catch { /* ignore */ }
+    } catch (err) {
+      console.warn('[panel] 照片選取失敗', err);
+      setStatus('無法讀取照片：' + errText(err), 'error');
+    }
+  });
+  on(els.btnPhotoClear, 'click', () => runAction('clearPhoto'));
 
   // 動作按鈕
   on(els.btnPlay, 'click', () => runAction('play'));

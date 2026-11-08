@@ -4,7 +4,7 @@ import { loadConfig, saveConfig, RATIOS, PALETTES, CONFIG_STORAGE_KEY } from './
 import { createScene } from './scene/index.js';
 import { createAudio } from './audio/audio.js';
 import { createRecorder, saveBlob } from './record/recorder.js';
-import { saveAudio, loadAudio, clearAudio } from './audio/cache.js';
+import { saveAudio, loadAudio, clearAudio, savePhoto, loadPhoto, clearPhoto } from './audio/cache.js';
 import { createPanel } from './ui/panel.js';
 import { syntheticStats } from './lib/beat.js';
 import { formatTime, clamp } from './lib/timeline.js';
@@ -72,6 +72,8 @@ const actions = {
   reset: resetConfig,
   applyConfig,
   loadAudio: loadAudioFile,
+  loadPhoto: loadPhotoFile,
+  clearPhoto: clearPhotoFile,
   snapshot,
   seek: seekTo,
 };
@@ -309,7 +311,71 @@ function resetConfig() {
   try { localStorage.removeItem(CONFIG_STORAGE_KEY); } catch { /* ignore */ }
   // 「重設」是全部歸零：連這台裝置記住的音檔一起清掉
   clearAudio().catch(() => {});
+  clearPhoto().catch(() => {});
   location.reload();
+}
+
+// ── 形象照片 → 3D 粒子人像 ──
+function loadImageFromFile(file) {
+  return new Promise((resolve, reject) => {
+    let url = null;
+    try {
+      url = URL.createObjectURL(file);
+    } catch (err) {
+      reject(new Error('這個瀏覽器不能讀取檔案'));
+      return;
+    }
+    const img = new Image();
+    img.onload = () => {
+      try { URL.revokeObjectURL(url); } catch { /* ignore */ }
+      resolve(img);
+    };
+    img.onerror = () => {
+      try { URL.revokeObjectURL(url); } catch { /* ignore */ }
+      reject(new Error('圖片解碼失敗，請用 jpg / png'));
+    };
+    img.src = url;
+  });
+}
+
+async function loadPhotoFile(file) {
+  if (!file) return;
+  const name = String(file.name || '照片');
+  if (!/^image\//i.test(String(file.type || '')) && !/\.(png|jpe?g|webp|heic|heif)$/i.test(name)) {
+    panel.setStatus(`「${name}」不是圖片，請選 jpg / png`, 'error');
+    return;
+  }
+  try {
+    panel.setStatus('把照片轉成 3D 粒子中…', 'info');
+    const img = await loadImageFromFile(file);
+    const res = scene.setPortrait(img);
+    if (!res || !res.ok) throw new Error((res && res.error) || '無法建立 3D 形象');
+    panel.setStatus(`已加入你的 3D 形象：${res.count} 顆粒子（城市街道上，鏡頭飛過時看到）`, 'ok');
+    savePhoto(file).then((r) => {
+      if (!r.ok && r.reason) console.warn('[mv] 照片無法存進本機快取', r.reason);
+    });
+  } catch (err) {
+    console.error('[mv] 形象建立失敗', err);
+    panel.setStatus('形象建立失敗：' + String((err && err.message) || err), 'error');
+  }
+}
+
+async function clearPhotoFile() {
+  try { scene.setPortrait(null); } catch { /* ignore */ }
+  try { await clearPhoto(); } catch { /* ignore */ }
+  panel.setStatus('已移除 3D 形象', 'info');
+}
+
+async function restoreCachedPhoto() {
+  try {
+    const cached = await loadPhoto();
+    if (!cached || !cached.file) return;
+    const img = await loadImageFromFile(cached.file);
+    const res = scene.setPortrait(img);
+    if (res && res.ok) panel.setStatus(`已自動載入你的 3D 形象（${res.count} 顆粒子）`, 'ok');
+  } catch (err) {
+    console.warn('[mv] 還原形象失敗', err);
+  }
 }
 
 // 選錯檔案時給「人話」——比「無法解碼這個音訊檔」有用得多
@@ -404,6 +470,7 @@ panel.setStatus('準備好了：填歌名/藝名 → 上傳音樂 → 按「錄�
 restoreCachedAudio()
   .then((restored) => { if (!restored) armRestoreOnFirstGesture(); })
   .catch(() => armRestoreOnFirstGesture());
+restoreCachedPhoto().catch(() => {});
 
 // 切成背景時暫停試看，避免耗電
 document.addEventListener('visibilitychange', () => {

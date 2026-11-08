@@ -56,7 +56,7 @@ src/audio/          # 解碼、BPM、頻譜 Stats、錄影混音 stream、cache.
 src/record/         # MediaRecorder 封裝 + saveBlob
 src/ui/             # panel.js / panel.css（手機底部抽屜、桌面右側 360px）
 src/lib/            # 純函式：beat.js（BPM/節拍）、timeline.js
-test/ scripts/      # 37 個單元測試；verify.mjs / run-tests.mjs / syntax-check.mjs / vendor-three.mjs / deploy-github.sh
+test/ scripts/      # 40 個單元測試；verify.mjs / run-tests.mjs / syntax-check.mjs / vendor-three.mjs / deploy-github.sh
 memory/             # 對話記憶
 vendor/three/       # vendored three.js 0.187（GitHub Pages 用，含 MIT LICENSE）
 ```
@@ -65,7 +65,7 @@ vendor/three/       # vendored three.js 0.187（GitHub Pages 用，含 MIT LICEN
 
 ```bash
 node scripts/verify.mjs --strict   # 16 項（語法/import/importmap/分層/純函式/視覺常數/測試）
-node scripts/run-tests.mjs         # 37 個單元測試
+node scripts/run-tests.mjs         # 40 個單元測試
 ```
 
 ## 4. 為什麼是這個架構（別推翻這些決策）
@@ -113,6 +113,8 @@ node scripts/run-tests.mjs         # 37 個單元測試
 
 18. 文字顏色原本只能跟主題色（`applyTextColors()` 用 palette 推）。已新增 `lyricColor` / `titleColor`（空字串＝跟隨主題色），面板「文字顏色」兩個色盤可自選，`setConfig` 偵測顏色變更也會重套。單一顏色會自動推成深／淺兩階（`pairFrom()`）餵給粒子的雙色混合，避免看起來死板。
 
+19. 新增「我的形象（3D）」：照片 → 3D 粒子人像（`src/scene/portrait.js`）。取樣 220 寬、目標 12000 粒子，z 用亮度做厚度（真視差），站在街道 z=-70、高 25 世界單位。自動判斷兩種照片：去背 PNG → 加法混合霓虹人形；一般照片 → 正常混合 + 橢圓柔邊 + 主題色染色（否則深色衣服在夜景裡整片看不見）。**實作踩到的坑**：① 一開始用「每 N 個取一個」抽樣 → 畫面出現直條紋、臉完全看不出來；必須改成固定種子的均勻隨機抽樣。② 直式全身照要自動取上半身（top 0..0.64），否則臉分不到足夠粒子。照片存在本機 IndexedDB（`audio/cache.js` 的 photo key），不進 repo。
+
 ## 7. 目前未完成（接手後先問）
 
 - [x] **歌曲資料已套用並上線**（SOMBRA《Night Shift》，15 句、片長 62.76 秒、BPM 93.5）。已 push 到 `main`，線上 `config.js` 驗證過是新歌。
@@ -120,6 +122,7 @@ node scripts/run-tests.mjs         # 37 個單元測試
 - [ ] **第一次「試看 + 錄製成片」還沒回報**：要確認 ① 有沒有聲音 ② 有沒有歌詞文字 ③ mp4 能不能播。
 - [ ] 依實測畫面調色（請使用者把時間軸拖到 5s / 10s / 17s 各截一張圖）。
 - [ ] 16:9 與 1:1 尚未在真機看過。
+- [ ] **3D 形象的效果驗證**：使用者原始照片是「黑衣＋逆光臉」，粒子化後臉不清楚；建議改用去背 PNG（iPad 照片長按主體）或臉部打光的正面照。實測畫面待回報。
 - [ ] 可選：Windows 覺得光暈糊 → 刪 `scene/post.js` 裡 `bloomPass.setSize` 的 override。
 
 ## 8. 接手須知（照這個順序做）

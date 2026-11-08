@@ -26,6 +26,7 @@ import { createCity } from './city.js';
 import { createProps } from './props.js';
 import { createAtmosphere } from './atmos.js';
 import { createPost } from './post.js';
+import { createParticlePortrait } from './portrait.js';
 
 // 固定種子：場景的「亂數」全部由此展開，播放時才不會每次長得不一樣。
 const SEED = 20241107;
@@ -83,6 +84,7 @@ function normalizeConfig(input) {
   for (const key of ['showCity', 'showVinyl', 'showMic', 'showParticles', 'showLyrics', 'showRain']) {
     c[key] = c[key] !== false;
   }
+  c.showPortrait = c.showPortrait !== false;
   c.lyrics = Array.isArray(c.lyrics)
     ? c.lyrics
         .filter((line) => line && typeof line.text === 'string')
@@ -337,6 +339,7 @@ export function createScene({ canvas, config } = {}) {
       city.setVisible(cfg.showCity !== false);
       props.setVisible({ vinyl: cfg.showVinyl !== false, mic: cfg.showMic !== false });
       atmos.setVisible({ rain: cfg.showRain !== false, particles: cfg.showParticles !== false });
+      if (portrait) portrait.setVisible(cfg.showPortrait !== false);
     } catch (err) {
       warn('套用可見性失敗', err);
     }
@@ -561,6 +564,36 @@ export function createScene({ canvas, config } = {}) {
     }
   }
 
+  // ── 使用者的 3D 粒子人像（照片取樣，站在城市街道上）──
+  // 放在 camera 路徑會經過的位置，鏡頭飛過去才有真實視差。
+  const PORTRAIT_POS = { x: 0, y: 13.5, z: -70 };
+  const PORTRAIT_HEIGHT = 25;
+  let portrait = null;
+
+  function setPortrait(image, enabled = true) {
+    try {
+      if (portrait) {
+        try { portrait.dispose(); } catch { /* ignore */ }
+        portrait = null;
+      }
+      if (!image || enabled === false) return { ok: false };
+      portrait = createParticlePortrait({
+        image,
+        seed: (SEED ^ 0x5e6f7a) >>> 0,
+        tint: palette.key, // 深色衣服／暗背景用主題色打亮，否則在夜景裡看不見
+      });
+      const obj = portrait.object;
+      obj.position.set(PORTRAIT_POS.x, PORTRAIT_POS.y, PORTRAIT_POS.z);
+      obj.scale.setScalar(PORTRAIT_HEIGHT);
+      scene.add(obj);
+      applyVisibility();
+      return { ok: true, count: portrait.count, aspect: portrait.aspect };
+    } catch (err) {
+      warn('3D 形象建立失敗', err);
+      return { ok: false, error: String((err && err.message) || err) };
+    }
+  }
+
   // ── 每幀主邏輯 ──
   function applyFrame(t, stats) {
     const D = cfg.duration;
@@ -576,6 +609,10 @@ export function createScene({ canvas, config } = {}) {
     // ── 鏡頭：分鏡路徑 + 手持微動 + 節拍震動（全部是 t 的函式）──
     camera.fov = fovForAspect(camera.aspect) + path.fovOffset;
     camera.updateProjectionMatrix();
+
+    if (portrait) {
+      try { portrait.update(tt, beat); } catch (err) { warn('portrait.update', err); }
+    }
 
     const slamAge = tt - tl.artistStart;
     const slamShake = slamAge >= 0 ? Math.exp(-slamAge * 3.2) * 1.5 : 0;
@@ -682,6 +719,7 @@ export function createScene({ canvas, config } = {}) {
     try { city.dispose(); } catch (err) { warn('city.dispose', err); }
     try { props.dispose(); } catch (err) { warn('props.dispose', err); }
     try { atmos.dispose(); } catch (err) { warn('atmos.dispose', err); }
+    if (portrait) { try { portrait.dispose(); } catch { /* ignore */ } portrait = null; }
     try { disposeObject3D(scene); } catch { /* ignore */ }
     try { if (envRT) envRT.dispose(); } catch { /* ignore */ }
     envRT = null;
@@ -700,5 +738,5 @@ export function createScene({ canvas, config } = {}) {
     warn('初始畫面失敗', err);
   }
 
-  return { setConfig, resize, update, render, dispose, info };
+  return { setConfig, resize, update, render, dispose, info, setPortrait };
 }

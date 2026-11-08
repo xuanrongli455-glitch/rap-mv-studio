@@ -99,6 +99,7 @@ export const defaultConfig = {
   showMic: true,
   showParticles: true,
   showLyrics: true,
+  showPortrait: true,   // 我的 3D 粒子形象（照片在本機處理）
   showRain: true,
 };
 

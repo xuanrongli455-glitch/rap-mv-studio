@@ -168,3 +168,43 @@ test('audio cache：容量爆掉時回 ok:false，但不會讓程式炸掉', asy
   // 失敗後讀取仍要能安全回 null
   assert.equal(await loadAudio(), null);
 });
+
+// ── 形象照片（跟音檔共用同一個 store，但不同 key）───────────────
+import { savePhoto, loadPhoto, clearPhoto, hasPhoto } from '../src/audio/cache.js';
+
+test('photo cache：存讀照片，且不會蓋掉音檔', async () => {
+  setFake(makeFakeIndexedDB());
+  const audio = makeFile('fake-audio', 'Night Shift.wav', 'audio/wav');
+  const photo = makeFile('fake-photo-bytes', 'sombra.png', 'image/png');
+
+  assert.equal((await saveAudio(audio)).ok, true);
+  assert.equal((await savePhoto(photo)).ok, true);
+
+  const a = await loadAudio();
+  const p = await loadPhoto();
+  assert.equal(a.name, 'Night Shift.wav', '音檔不該被照片蓋掉');
+  assert.equal(p.name, 'sombra.png');
+  assert.equal(new TextDecoder().decode(await p.file.arrayBuffer()), 'fake-photo-bytes');
+  assert.equal(await hasPhoto(), true);
+});
+
+test('photo cache：清除照片不影響音檔（重設才是全部清）', async () => {
+  setFake(makeFakeIndexedDB());
+  await saveAudio(makeFile('audio-1', 'a.wav'));
+  await savePhoto(makeFile('photo-1', 'p.jpg'));
+
+  assert.equal(await clearPhoto(), true);
+  assert.equal(await hasPhoto(), false);
+  assert.equal((await loadAudio())?.name, 'a.wav', '清照片不該動到音檔');
+
+  assert.equal(await clearAudio(), true);
+  assert.equal(await hasAudio(), false);
+});
+
+test('photo cache：沒有 IndexedDB 時安靜降級', async () => {
+  delete globalThis.indexedDB;
+  assert.equal(await loadPhoto(), null);
+  assert.equal(await hasPhoto(), false);
+  const res = await savePhoto(makeFile('x'));
+  assert.equal(res.ok, false);
+});
