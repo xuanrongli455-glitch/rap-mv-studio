@@ -1,8 +1,9 @@
 # AGENTS.md — 這個 Agent 的記憶與人格
 
 > 給**任何一個 DSH 實例**（iPad / 別台手機 / 新對話）讀的接手文件。
-> 讀完這份 + [`memory/conversation-2026-11-07.md`](memory/conversation-2026-11-07.md)，
-> 你就等同接上 2026-11-07 那場在 iPhone 上進行的對話。
+> 讀完這份 + [`memory/conversation-2026-11-07.md`](memory/conversation-2026-11-07.md)（iPhone 場，起源）
+> + [`memory/conversation-2026-11-07-ipad.md`](memory/conversation-2026-11-07-ipad.md)（iPad 場，接手後的進度與最新狀況），
+> 你就等同接上這個專案的完整脈絡。**最新狀態以 iPad 那份為準。**
 >
 > 建議開場指令：
 > **「讀 AGENTS.md 與 memory/conversation-2026-11-07.md，然後照『接手須知』繼續。」**
@@ -110,7 +111,7 @@ node scripts/run-tests.mjs         # 37 個單元測試
 
 ## 7. 目前未完成（接手後先問）
 
-- [x] **歌曲資料已套用**（SOMBRA《Night Shift》，15 句、片長 62.76 秒、BPM 93.5）。**還沒 push**：需要 classic PAT 才能推 Pages。
+- [x] **歌曲資料已套用並上線**（SOMBRA《Night Shift》，15 句、片長 62.76 秒、BPM 93.5）。已 push 到 `main`，線上 `config.js` 驗證過是新歌。
 - [ ] 歌詞排點是從音檔能量分段推的（四段人聲 4/6/4/1 句），**可能不對嘴**；若使用者聽出來哪裡早了/晚了，直接改 `defaultConfig.lyrics` 的 t0/t1（絕對秒數）即可。
 - [ ] **第一次「試看 + 錄製成片」還沒回報**：要確認 ① 有沒有聲音 ② 有沒有歌詞文字 ③ mp4 能不能播。
 - [ ] 依實測畫面調色（請使用者把時間軸拖到 5s / 10s / 17s 各截一張圖）。
@@ -119,7 +120,7 @@ node scripts/run-tests.mjs         # 37 個單元測試
 
 ## 8. 接手須知（照這個順序做）
 
-1. 先讀這份 + `memory/conversation-2026-11-07.md`（完整對話壓縮版，含使用者的每一句話與我的每次回覆）。
+1. 先讀這份 + `memory/conversation-2026-11-07.md`（iPhone 場壓縮版）+ `memory/conversation-2026-11-07-ipad.md`（iPad 場，最新狀況）。
 2. 回報一句「已接手，目前卡在：歌詞資料 + 首次錄影驗證」。
 3. 若使用者要繼續開發：動手前先跑 `node scripts/verify.mjs --strict` 確認基線是綠的。
 4. 若要推到線上：`GITTOKEN=... OWNER=xuanrongli455-glitch REPO=rap-mv-studio bash scripts/deploy-github.sh`
