@@ -99,7 +99,8 @@ export const defaultConfig = {
   showMic: true,
   showParticles: true,
   showLyrics: true,
-  showPortrait: true,   // 我的 3D 粒子形象（照片在本機處理）
+  showPortrait: false,  // 照片粒子人像（預設關，改用 3D 角色）
+  showAvatar: true,     // 3D 動漫角色（VRM / GLB，模型在本機處理）
   showRain: true,
 };
 

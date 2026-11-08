@@ -27,6 +27,7 @@ import { createProps } from './props.js';
 import { createAtmosphere } from './atmos.js';
 import { createPost } from './post.js';
 import { createParticlePortrait } from './portrait.js';
+import { createAvatar } from './avatar.js';
 
 // 固定種子：場景的「亂數」全部由此展開，播放時才不會每次長得不一樣。
 const SEED = 20241107;
@@ -85,6 +86,7 @@ function normalizeConfig(input) {
     c[key] = c[key] !== false;
   }
   c.showPortrait = c.showPortrait !== false;
+  c.showAvatar = c.showAvatar !== false;
   c.lyrics = Array.isArray(c.lyrics)
     ? c.lyrics
         .filter((line) => line && typeof line.text === 'string')
@@ -340,6 +342,7 @@ export function createScene({ canvas, config } = {}) {
       props.setVisible({ vinyl: cfg.showVinyl !== false, mic: cfg.showMic !== false });
       atmos.setVisible({ rain: cfg.showRain !== false, particles: cfg.showParticles !== false });
       if (portrait) portrait.setVisible(cfg.showPortrait !== false);
+      if (avatar) avatar.setVisible(cfg.showAvatar !== false);
     } catch (err) {
       warn('套用可見性失敗', err);
     }
@@ -564,6 +567,43 @@ export function createScene({ canvas, config } = {}) {
     }
   }
 
+  // ── 使用者的 3D 動漫角色（VRM / GLB 模型）──
+  const AVATAR_POS = { x: 0, y: 0, z: -58 };
+  const AVATAR_HEIGHT = 8; // 世界單位；鏡頭飛過時的視覺高度
+  let avatar = null;
+  let avatarToken = 0;
+
+  async function setAvatar(url) {
+    const token = ++avatarToken;
+    if (avatar) {
+      try { avatar.dispose(); } catch { /* ignore */ }
+      avatar = null;
+    }
+    if (!url) return { ok: false };
+    try {
+      const created = await createAvatar({ url, height: AVATAR_HEIGHT, tint: palette.key });
+      // 載入期間使用者又換了模型 → 丟掉這一個
+      if (token !== avatarToken) {
+        try { created.dispose(); } catch { /* ignore */ }
+        return { ok: false, error: '已被更新的模型取代' };
+      }
+      avatar = created;
+      avatar.object.position.set(AVATAR_POS.x, AVATAR_POS.y, AVATAR_POS.z);
+      scene.add(avatar.object);
+      applyVisibility();
+      return {
+        ok: true,
+        meshes: avatar.meshCount,
+        animations: avatar.animations,
+        bones: avatar.bones,
+        hasRig: avatar.hasRig,
+      };
+    } catch (err) {
+      warn('3D 角色載入失敗', err);
+      return { ok: false, error: String((err && err.message) || err) };
+    }
+  }
+
   // ── 使用者的 3D 粒子人像（照片取樣，站在城市街道上）──
   // 放在 camera 路徑會經過的位置，鏡頭飛過去才有真實視差。
   const PORTRAIT_POS = { x: 0, y: 13.5, z: -70 };
@@ -610,6 +650,9 @@ export function createScene({ canvas, config } = {}) {
     camera.fov = fovForAspect(camera.aspect) + path.fovOffset;
     camera.updateProjectionMatrix();
 
+    if (avatar) {
+      try { avatar.update(tt, beat); } catch (err) { warn('avatar.update', err); }
+    }
     if (portrait) {
       try { portrait.update(tt, beat); } catch (err) { warn('portrait.update', err); }
     }
@@ -720,6 +763,7 @@ export function createScene({ canvas, config } = {}) {
     try { props.dispose(); } catch (err) { warn('props.dispose', err); }
     try { atmos.dispose(); } catch (err) { warn('atmos.dispose', err); }
     if (portrait) { try { portrait.dispose(); } catch { /* ignore */ } portrait = null; }
+    if (avatar) { try { avatar.dispose(); } catch { /* ignore */ } avatar = null; }
     try { disposeObject3D(scene); } catch { /* ignore */ }
     try { if (envRT) envRT.dispose(); } catch { /* ignore */ }
     envRT = null;
@@ -738,5 +782,5 @@ export function createScene({ canvas, config } = {}) {
     warn('初始畫面失敗', err);
   }
 
-  return { setConfig, resize, update, render, dispose, info, setPortrait };
+  return { setConfig, resize, update, render, dispose, info, setPortrait, setAvatar };
 }

@@ -308,6 +308,54 @@ function check() {
     pass('import 來源', 'bare specifier 只有 three / three/addons（沒有新增 npm 依賴）');
   }
 
+  // 3b. three/addons/... 的每個 specifier 都必須真的 vendored 在磁碟上。
+  //     漏 copy GLTFLoader 這類 addon 時，瀏覽器整個模組圖會載入失敗（白屏），
+  //     但語法檢查、相對 import 檢查都抓不到 → 一定要有這一條。
+  const addonMissing = [];
+  for (const file of jsFiles) {
+    const code = codeOnly(read(file));
+    for (const m of code.matchAll(/(?:\bfrom\s*|\bimport\s*\(\s*)['"](three\/addons\/[^'"]+)['"]/g)) {
+      const sub = m[1].slice('three/addons/'.length);
+      const mapped = path.join(ROOT, 'vendor', 'three', 'examples', 'jsm', sub);
+      if (!isFile(mapped)) {
+        addonMissing.push(`${rel(file)} → ${m[1]}（缺 vendor/three/examples/jsm/${sub}）`);
+      }
+    }
+  }
+  if (addonMissing.length) {
+    fail('addon 檔案', addonMissing.join('；'));
+  } else {
+    // 再往下鑽一層：vendored addon 自己的相對 import 也要存在、語法要能過。
+    // （GLTFLoader 依賴 BufferGeometryUtils / SkeletonUtils，漏 copy 一樣會白屏）
+    const addonFiles = [];
+    for (const file of jsFiles) {
+      const code = codeOnly(read(file));
+      for (const m of code.matchAll(/(?:\bfrom\s*|\bimport\s*\(\s*)['"](three\/addons\/[^'"]+)['"]/g)) {
+        const sub = m[1].slice('three/addons/'.length);
+        const mapped = path.join(ROOT, 'vendor', 'three', 'examples', 'jsm', sub);
+        if (isFile(mapped) && !addonFiles.includes(mapped)) addonFiles.push(mapped);
+      }
+    }
+    const addonDeps = [];
+    for (const file of addonFiles) {
+      const code = codeOnly(read(file));
+      for (const m of code.matchAll(/(?:\bfrom\s*|\bimport\s*\(\s*)['"](\.[^'"]+)['"]/g)) {
+        const target = path.resolve(path.dirname(file), m[1]);
+        if (!isFile(target)) addonDeps.push(`${rel(file)} → ${m[1]}`);
+      }
+    }
+    const addonSyntax = syntaxCheckAll(addonFiles);
+    const addonSyntaxErr = addonSyntax.errors.map((e) => `${e.file}：${e.message}`);
+    const problems = [...addonDeps, ...addonSyntaxErr];
+    if (problems.length) fail('addon 檔案', problems.join('；'));
+    else {
+      pass(
+        'addon 檔案',
+        `src 用到的 three/addons 全部已 vendored（${addonFiles.length} 檔，含依賴與語法）`,
+      );
+    }
+  }
+
   // main.js 直接 import 的檔案（題目明確要求：6 個模組缺一 → 交付前 FAIL）
   const mainPath = path.join(ROOT, 'src', 'main.js');
   const mainSrc = codeOnly(read(mainPath));

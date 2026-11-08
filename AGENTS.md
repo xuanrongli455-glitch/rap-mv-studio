@@ -16,7 +16,7 @@
 在這場對話裡運作時的實際風格（請維持）：
 
 - **先驗證、再動手**：不確定就實測（`curl`、`node -e`、直接讀原始碼），不猜。
-- **數據說話**：報告帶數字（16/16 PASS、誤差 0.06 BPM、200 回應碼），不講空話。
+- **數據說話**：報告帶數字（17/17 PASS、誤差 0.06 BPM、200 回應碼），不講空話。
 - **誠實標註限制**：環境做不到的事直接說（例如沒有 ffmpeg 就不能離線渲染 MP4），並給替代方案，而不是硬做。
 - **改了什麼就說為什麼**：每個 bug 修完要能講清楚根因（TDZ、GLSL 未定義行為、instanceColor 乘算…）。
 - **交付前自己先跑驗收**：`verify --strict` + 單元測試，綠了才算完成。
@@ -56,7 +56,7 @@ src/audio/          # 解碼、BPM、頻譜 Stats、錄影混音 stream、cache.
 src/record/         # MediaRecorder 封裝 + saveBlob
 src/ui/             # panel.js / panel.css（手機底部抽屜、桌面右側 360px）
 src/lib/            # 純函式：beat.js（BPM/節拍）、timeline.js
-test/ scripts/      # 40 個單元測試；verify.mjs / run-tests.mjs / syntax-check.mjs / vendor-three.mjs / deploy-github.sh
+test/ scripts/      # 43 個單元測試；verify.mjs / run-tests.mjs / syntax-check.mjs / vendor-three.mjs / deploy-github.sh
 memory/             # 對話記憶
 vendor/three/       # vendored three.js 0.187（GitHub Pages 用，含 MIT LICENSE）
 ```
@@ -64,8 +64,8 @@ vendor/three/       # vendored three.js 0.187（GitHub Pages 用，含 MIT LICEN
 ### 驗收（改完必跑，全部要綠）
 
 ```bash
-node scripts/verify.mjs --strict   # 16 項（語法/import/importmap/分層/純函式/視覺常數/測試）
-node scripts/run-tests.mjs         # 40 個單元測試
+node scripts/verify.mjs --strict   # 17 項（語法/import/importmap/分層/純函式/視覺常數/測試）
+node scripts/run-tests.mjs         # 43 個單元測試
 ```
 
 ## 4. 為什麼是這個架構（別推翻這些決策）
@@ -115,6 +115,9 @@ node scripts/run-tests.mjs         # 40 個單元測試
 
 19. 新增「我的形象（3D）」：照片 → 3D 粒子人像（`src/scene/portrait.js`）。取樣 220 寬、目標 12000 粒子，z 用亮度做厚度（真視差），站在街道 z=-70、高 25 世界單位。自動判斷兩種照片：去背 PNG → 加法混合霓虹人形；一般照片 → 正常混合 + 橢圓柔邊 + 主題色染色（否則深色衣服在夜景裡整片看不見）。**實作踩到的坑**：① 一開始用「每 N 個取一個」抽樣 → 畫面出現直條紋、臉完全看不出來；必須改成固定種子的均勻隨機抽樣。② 直式全身照要自動取上半身（top 0..0.64），否則臉分不到足夠粒子。照片存在本機 IndexedDB（`audio/cache.js` 的 photo key），不進 repo。
 
+20. 使用者要「真實的動漫 3D 效果」（不要粒子）→ 新增 `src/scene/avatar.js`：用 vendored 的 `GLTFLoader` 載入 `.vrm / .glb`，材質轉 `MeshToonMaterial`（4 階 gradientMap = 賽璐璐著色）、加主題色 rim light、腳下柔邊陰影、縮到 8 世界單位高並把腳貼地；站在街道 z=-58。動作：模型自帶 animation → `AnimationMixer.setTime(t)`（維持確定性）；沒有動畫 → 依骨骼名找 Hips/Spine/Head/Arm 做程序化 idle（呼吸、點頭、擺手、跟著節拍）。模型存本機 IndexedDB。
+    **verify 也補了第 17 項「addon 檔案」**：掃 src 裡所有 `three/addons/...`，確認 vendor 內實體檔存在、它自己的相對 import 也在、語法能過。破壞性測試：刪 GLTFLoader → FAIL；只刪它的依賴 SkeletonUtils → 也 FAIL（這兩種都會讓瀏覽器整個模組圖載入失敗、白屏，但 node 端語法/相對 import 檢查都抓不到）。
+
 ## 7. 目前未完成（接手後先問）
 
 - [x] **歌曲資料已套用並上線**（SOMBRA《Night Shift》，15 句、片長 62.76 秒、BPM 93.5）。已 push 到 `main`，線上 `config.js` 驗證過是新歌。
@@ -122,6 +125,7 @@ node scripts/run-tests.mjs         # 40 個單元測試
 - [ ] **第一次「試看 + 錄製成片」還沒回報**：要確認 ① 有沒有聲音 ② 有沒有歌詞文字 ③ mp4 能不能播。
 - [ ] 依實測畫面調色（請使用者把時間軸拖到 5s / 10s / 17s 各截一張圖）。
 - [ ] 16:9 與 1:1 尚未在真機看過。
+- [ ] **3D 動漫角色待使用者提供模型**：需用 VRoid Studio（iOS app，免費，匯出 .vrm）或 Ready Player Me（匯出 .glb）做一個角色，上傳後才會出現在街道上。方向/比例若怪（背對鏡頭、太高太小），改 `scene/index.js` 的 `AVATAR_POS` / `AVATAR_HEIGHT` 或 `avatar.object.rotation.y`。
 - [ ] **3D 形象的效果驗證**：使用者原始照片是「黑衣＋逆光臉」，粒子化後臉不清楚；建議改用去背 PNG（iPad 照片長按主體）或臉部打光的正面照。實測畫面待回報。
 - [ ] 可選：Windows 覺得光暈糊 → 刪 `scene/post.js` 裡 `bloomPass.setSize` 的 override。
 

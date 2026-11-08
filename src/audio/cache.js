@@ -9,6 +9,7 @@ const STORE = 'files';
 const DB_VERSION = 1;
 const AUDIO_KEY = 'current';
 const PHOTO_KEY = 'photo';
+const AVATAR_KEY = 'avatar';
 
 function factory() {
   try {
@@ -145,4 +146,12 @@ export const loadPhoto = () => getBlob(PHOTO_KEY);
 export const clearPhoto = () => deleteKey(PHOTO_KEY);
 export async function hasPhoto() {
   return !!(await loadPhoto());
+}
+
+// ── 對外 API：3D 角色模型（VRM / GLB，通常 3~15MB）──
+export const saveAvatar = (file) => putBlob(AVATAR_KEY, file);
+export const loadAvatar = () => getBlob(AVATAR_KEY);
+export const clearAvatar = () => deleteKey(AVATAR_KEY);
+export async function hasAvatar() {
+  return !!(await loadAvatar());
 }

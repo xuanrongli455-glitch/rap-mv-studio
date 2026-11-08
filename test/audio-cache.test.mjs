@@ -208,3 +208,42 @@ test('photo cache：沒有 IndexedDB 時安靜降級', async () => {
   const res = await savePhoto(makeFile('x'));
   assert.equal(res.ok, false);
 });
+
+// ── 3D 角色模型（VRM / GLB）────────────────────────────────
+import { saveAvatar, loadAvatar, clearAvatar, hasAvatar } from '../src/audio/cache.js';
+
+test('avatar cache：存讀 3D 模型，且不影響音檔/照片', async () => {
+  setFake(makeFakeIndexedDB());
+  await saveAudio(makeFile('audio-x', 'a.wav'));
+  await savePhoto(makeFile('photo-x', 'p.jpg'));
+  const glb = makeFile('glTF-binary-bytes', 'sombra.vrm', 'model/gltf-binary');
+
+  const res = await saveAvatar(glb);
+  assert.equal(res.ok, true, `存模型應成功，實際 ${JSON.stringify(res)}`);
+
+  const loaded = await loadAvatar();
+  assert.ok(loaded, '應讀得回模型');
+  assert.equal(loaded.name, 'sombra.vrm');
+  assert.equal(new TextDecoder().decode(await loaded.file.arrayBuffer()), 'glTF-binary-bytes');
+  // 三個 key 互不覆蓋
+  assert.equal((await loadAudio())?.name, 'a.wav');
+  assert.equal((await loadPhoto())?.name, 'p.jpg');
+  assert.equal(await hasAvatar(), true);
+});
+
+test('avatar cache：清除模型不影響其他媒體', async () => {
+  setFake(makeFakeIndexedDB());
+  await saveAvatar(makeFile('m', 'x.glb'));
+  await saveAudio(makeFile('a', 'a.wav'));
+
+  assert.equal(await clearAvatar(), true);
+  assert.equal(await hasAvatar(), false);
+  assert.equal((await loadAudio())?.name, 'a.wav', '清模型不該動到音檔');
+});
+
+test('avatar cache：沒有 IndexedDB 時安靜降級', async () => {
+  delete globalThis.indexedDB;
+  assert.equal(await loadAvatar(), null);
+  assert.equal(await hasAvatar(), false);
+  assert.equal((await saveAvatar(makeFile('m'))).ok, false);
+});

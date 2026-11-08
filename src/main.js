@@ -4,7 +4,7 @@ import { loadConfig, saveConfig, RATIOS, PALETTES, CONFIG_STORAGE_KEY } from './
 import { createScene } from './scene/index.js';
 import { createAudio } from './audio/audio.js';
 import { createRecorder, saveBlob } from './record/recorder.js';
-import { saveAudio, loadAudio, clearAudio, savePhoto, loadPhoto, clearPhoto } from './audio/cache.js';
+import { saveAudio, loadAudio, clearAudio, savePhoto, loadPhoto, clearPhoto, saveAvatar, loadAvatar, clearAvatar } from './audio/cache.js';
 import { createPanel } from './ui/panel.js';
 import { syntheticStats } from './lib/beat.js';
 import { formatTime, clamp } from './lib/timeline.js';
@@ -73,6 +73,8 @@ const actions = {
   applyConfig,
   loadAudio: loadAudioFile,
   loadPhoto: loadPhotoFile,
+  loadAvatar: loadAvatarFile,
+  clearAvatar: clearAvatarFile,
   clearPhoto: clearPhotoFile,
   snapshot,
   seek: seekTo,
@@ -312,7 +314,64 @@ function resetConfig() {
   // 「重設」是全部歸零：連這台裝置記住的音檔一起清掉
   clearAudio().catch(() => {});
   clearPhoto().catch(() => {});
+  clearAvatar().catch(() => {});
   location.reload();
+}
+
+// ── 3D 角色模型（VRM / GLB）──
+const AVATAR_EXT = /\.(vrm|glb|gltf)$/i;
+
+async function loadAvatarFile(file) {
+  if (!file) return;
+  const name = String(file.name || '模型');
+  if (!AVATAR_EXT.test(name)) {
+    panel.setStatus(`「${name}」不是 3D 模型檔，請選 .vrm 或 .glb`, 'error');
+    return;
+  }
+  let url = null;
+  try {
+    panel.setStatus(`載入 3D 角色「${name}」…（大檔要等一下）`, 'info');
+    url = URL.createObjectURL(file);
+    const res = await scene.setAvatar(url);
+    if (!res || !res.ok) throw new Error((res && res.error) || '無法載入模型');
+    panel.setStatus(
+      `3D 角色已就位：${res.meshes} 個網格、${res.bones} 根骨骼、${res.animations} 段動畫` +
+        (res.hasRig ? '（會跟著節拍律動）' : '（無骨骼，改整隻呼吸擺動）'),
+      'ok',
+    );
+    saveAvatar(file).then((r) => {
+      if (!r.ok && r.reason) console.warn('[mv] 模型無法存進本機快取', r.reason);
+    });
+  } catch (err) {
+    console.error('[mv] 3D 角色載入失敗', err);
+    panel.setStatus('模型載入失敗：' + String((err && err.message) || err), 'error');
+  } finally {
+    // GLTFLoader 讀完就能釋放 blob URL
+    if (url) setTimeout(() => { try { URL.revokeObjectURL(url); } catch { /* ignore */ } }, 4000);
+  }
+}
+
+async function clearAvatarFile() {
+  try { await scene.setAvatar(null); } catch { /* ignore */ }
+  try { await clearAvatar(); } catch { /* ignore */ }
+  panel.setStatus('已移除 3D 角色', 'info');
+}
+
+async function restoreCachedAvatar() {
+  let url = null;
+  try {
+    const cached = await loadAvatar();
+    if (!cached || !cached.file) return;
+    url = URL.createObjectURL(cached.file);
+    const res = await scene.setAvatar(url);
+    if (res && res.ok) {
+      panel.setStatus(`已自動載入你的 3D 角色（${res.meshes} 個網格）`, 'ok');
+    }
+  } catch (err) {
+    console.warn('[mv] 還原 3D 角色失敗', err);
+  } finally {
+    if (url) setTimeout(() => { try { URL.revokeObjectURL(url); } catch { /* ignore */ } }, 6000);
+  }
 }
 
 // ── 形象照片 → 3D 粒子人像 ──
@@ -471,6 +530,7 @@ restoreCachedAudio()
   .then((restored) => { if (!restored) armRestoreOnFirstGesture(); })
   .catch(() => armRestoreOnFirstGesture());
 restoreCachedPhoto().catch(() => {});
+restoreCachedAvatar().catch(() => {});
 
 // 切成背景時暫停試看，避免耗電
 document.addEventListener('visibilitychange', () => {

@@ -18,7 +18,7 @@ import { PALETTES } from '../config.js';
 import { autoDistributeLyrics, formatTime } from '../lib/timeline.js';
 
 const RANGE_KEYS = ['intensity', 'shake', 'bloom', 'grain'];
-const TOGGLE_KEYS = ['showCity', 'showVinyl', 'showMic', 'showParticles', 'showLyrics', 'showRain', 'showPortrait'];
+const TOGGLE_KEYS = ['showCity', 'showVinyl', 'showMic', 'showParticles', 'showLyrics', 'showRain', 'showPortrait', 'showAvatar'];
 
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 const clamp01 = (v) => {
@@ -129,7 +129,8 @@ const PANEL_HTML = `
       <label class="chk"><input type="checkbox" id="f-showParticles"><span>粒子</span></label>
       <label class="chk"><input type="checkbox" id="f-showLyrics"><span>歌詞</span></label>
       <label class="chk"><input type="checkbox" id="f-showRain"><span>雨</span></label>
-      <label class="chk"><input type="checkbox" id="f-showPortrait"><span>我的形象</span></label>
+      <label class="chk"><input type="checkbox" id="f-showPortrait"><span>粒子人像</span></label>
+      <label class="chk"><input type="checkbox" id="f-showAvatar"><span>3D 角色</span></label>
     </div>
   </section>
 
@@ -144,11 +145,15 @@ const PANEL_HTML = `
   </section>
 
   <section class="grp">
-    <h3 class="grp-t">我的形象（3D）</h3>
-    <label class="file-btn" for="f-photo">🧑‍🎤 放一張照片 → 變成 3D 粒子人像</label>
+    <h3 class="grp-t">我的形象（3D 動漫角色）</h3>
+    <label class="file-btn" for="f-avatar">🧑‍🎤 選 3D 模型（.vrm / .glb）</label>
+    <input id="f-avatar" type="file" hidden>
+    <button type="button" class="btn btn-sm" id="btn-avatar-clear" data-lock>移除 3D 角色</button>
+    <p class="meta" id="f-avatar-meta">用 VRoid Studio（免費）做動漫角色 → 匯出 .vrm；或 Ready Player Me 匯出 .glb。模型只在你這台裝置處理。</p>
+    <p class="meta">想改用「照片粒子人像」：</p>
+    <label class="file-btn" for="f-photo">🖼 照片 → 3D 粒子人像（另類風格）</label>
     <input id="f-photo" type="file" hidden>
-    <button type="button" class="btn btn-sm" id="btn-photo-clear" data-lock>移除形象</button>
-    <p class="meta" id="f-photo-meta">照片只在你的裝置上處理，不會上傳。建議用「去背」的 PNG（iPad 照片長按主體→拷貝）效果最好。</p>
+    <button type="button" class="btn btn-sm" id="btn-photo-clear" data-lock>移除粒子人像</button>
   </section>
 
   <section class="grp">
@@ -251,6 +256,9 @@ export function createPanel({ config, onChange, audio, recorder, actions } = {})
     btnColorAuto: $('#btn-color-auto'),
     colorMeta: $('#f-color-meta'),
     audioInput: $('#f-audio'),
+    avatarInput: $('#f-avatar'),
+    btnAvatarClear: $('#btn-avatar-clear'),
+    avatarMeta: $('#f-avatar-meta'),
     photoInput: $('#f-photo'),
     btnPhotoClear: $('#btn-photo-clear'),
     photoMeta: $('#f-photo-meta'),
@@ -726,6 +734,23 @@ export function createPanel({ config, onChange, audio, recorder, actions } = {})
       setStatus('無法讀取音檔：' + errText(err), 'error');
     }
   });
+
+  // 上傳 3D 角色模型（本機處理，不上傳）
+  on(els.avatarInput, 'change', () => {
+    try {
+      const input = els.avatarInput;
+      const file = input && input.files && input.files[0];
+      if (!file) return;
+      const mb = typeof file.size === 'number' ? (file.size / 1048576).toFixed(1) : '?';
+      setStatus(`已選擇模型「${file.name}」（${mb} MB）→ 載入中…`, 'info');
+      runAction('loadAvatar', file);
+      try { input.value = ''; } catch { /* ignore */ }
+    } catch (err) {
+      console.warn('[panel] 模型選取失敗', err);
+      setStatus('無法讀取模型：' + errText(err), 'error');
+    }
+  });
+  on(els.btnAvatarClear, 'click', () => runAction('clearAvatar'));
 
   // 上傳形象照片（本機處理，不上傳）
   on(els.photoInput, 'change', () => {
