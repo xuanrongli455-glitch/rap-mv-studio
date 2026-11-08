@@ -125,8 +125,11 @@ const PANEL_HTML = `
   <section class="grp">
     <h3 class="grp-t">音樂</h3>
     <label class="file-btn" for="f-audio">🎵 上傳音檔（mp3 / m4a / wav）</label>
-    <input id="f-audio" type="file" accept="audio/*" hidden>
+    <!-- 刻意不寫 accept：iOS 的選檔視窗會用 UTI 過濾，部分版本會把 .wav 灰掉不能選。
+         現在改成什麼檔都能選，選錯（圖片/影片）由 main.js 給人話提示。 -->
+    <input id="f-audio" type="file" hidden>
     <p class="meta" id="f-audio-meta" data-loaded="0">尚未載入音檔 → 錄影會是無聲影片</p>
+    <p class="meta">選檔視窗若把檔案顯示成灰色 → 那是雲端還沒下載到本機：先在「檔案」App 把歌下載，或長按拷貝到「我的 iPad」，再回來選。</p>
   </section>
 
   <section class="grp">
@@ -628,6 +631,9 @@ export function createPanel({ config, onChange, audio, recorder, actions } = {})
       const input = els.audioInput;
       const file = input && input.files && input.files[0];
       if (!file) return;
+      // 先給回饋：使用者要知道「檔案真的進來了」，才不會以為沒反應
+      const sizeMb = typeof file.size === 'number' ? (file.size / 1048576).toFixed(1) : '?';
+      setStatus(`已選擇「${file.name}」（${sizeMb} MB）→ 解碼中…`, 'info');
       runAction('loadAudio', file);
       // 清 value：使用者再選同一個檔案也要能觸發 change
       try { input.value = ''; } catch { /* ignore */ }

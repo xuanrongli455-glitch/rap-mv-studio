@@ -109,6 +109,8 @@ node scripts/run-tests.mjs         # 37 個單元測試
 
 16. 歌詞時間軸原本有**兩套語意**：`autoDistributeLyrics`（面板「套用歌詞」在用）給的是絕對秒數，但 `camera.lyricState` 會把 `t0/t1` 乘上 `k=duration/20`，`scene/index.js` 的歌詞爆光也乘。片長 20 秒時 k=1 剛好相等，所以從未爆；改成 62.76 秒（k=3.14）後，面板排好的 8.8~54 秒會被推成 27~169 秒，畫面幾乎看不到任何一句。已統一成**絕對秒數**（`lyricState(t, line)`、爆光不乘 k），並由 `test/lyrics.test.mjs`（5 個測試）＋ verify「視覺常數」雙重守門。同時 localStorage key 升到 `rap-mv:config:v2`，否則使用者瀏覽器裡的舊預設值（夜行者／20 秒）會把新歌蓋回去。
 
+17. 選檔框原本是 `accept="audio/*"`：iOS 的選檔視窗用 UTI 過濾，部分版本會把 `.wav` 灰掉不能選（使用者實測卡在這）。已**移除 accept**（什麼檔都能選），選錯（圖片／影片）由 `main.js` 的 `audioErrorMessage()` 給人話提示；面板另外提示「檔案變灰＝雲端還沒下載」。
+
 ## 7. 目前未完成（接手後先問）
 
 - [x] **歌曲資料已套用並上線**（SOMBRA《Night Shift》，15 句、片長 62.76 秒、BPM 93.5）。已 push 到 `main`，線上 `config.js` 驗證過是新歌。

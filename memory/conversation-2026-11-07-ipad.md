@@ -20,6 +20,7 @@ iPhone 那場的完整記憶在 [`conversation-2026-11-07.md`](conversation-2026
 | 5 | 「改回去畫面會壞但不會報錯」的值只靠人眼 | — | verify 新增第 16 項「視覺常數」，並用**破壞性測試**證明：注入 4 個回歸 → 全部被抓到（AGENTS #15） |
 | 6 | **片長一旦不是 20 秒，歌詞就會爛** | `autoDistributeLyrics`（面板）給絕對秒數，`camera.lyricState` 卻再 ×k=duration/20 | 統一成絕對秒數（AGENTS #16），雙重守門 |
 
+| 7 | 使用者在 iPad 選不到 `.wav`（檔案灰色） | 選檔框 `accept="audio/*"` 被 iOS 的 UTI 過濾 + 檔案其實還在雲端沒下載 | 移除 `accept`（什麼都能選）＋ `audioErrorMessage()` 給人話提示＋面板說明「變灰＝雲端未下載」 |
 ## 使用者給的資料（重要）
 
 - 歌：**SOMBRA《Night Shift》**，15 句英文歌詞。

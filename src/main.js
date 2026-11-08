@@ -312,6 +312,20 @@ function resetConfig() {
   location.reload();
 }
 
+// 選錯檔案時給「人話」——比「無法解碼這個音訊檔」有用得多
+function audioErrorMessage(file, err) {
+  const name = String((file && file.name) || '這個檔案');
+  const type = String((file && file.type) || '');
+  if (/^image\//i.test(type) || /\.(png|jpe?g|heic|heif|gif|webp|bmp|tiff?)$/i.test(name)) {
+    return `「${name}」是圖片，不是音檔——請選 .wav / .mp3 / .m4a`;
+  }
+  if (/^video\//i.test(type) || /\.(mov|mkv|avi|webm)$/i.test(name)) {
+    return `「${name}」是影片，不是音檔——請改選音檔`;
+  }
+  const raw = err && err.message ? err.message : String(err);
+  return `音檔載入失敗（${name}）：${raw}。支援 mp3 / m4a / wav（wav 較大，解碼要等一下）`;
+}
+
 async function loadAudioFile(file, { fromCache = false } = {}) {
   if (!file) return;
   panel.setStatus(fromCache ? '還原上次的歌…' : '分析音檔中…', 'info');
@@ -333,7 +347,7 @@ async function loadAudioFile(file, { fromCache = false } = {}) {
     }
   } catch (err) {
     console.error('[mv] 音檔載入失敗', err);
-    panel.setStatus('音檔載入失敗：' + (err?.message || err), 'error');
+    panel.setStatus(audioErrorMessage(file, err), 'error');
   }
 }
 
